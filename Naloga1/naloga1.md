@@ -14,6 +14,7 @@ Ko smo pognali frontend `npm install` ukaz smo dobili naslednji error, vendar to
 
 ![image3.png](slike/image3.png)
 
-Standardi:
+Če poizkusimi zdaj uporabljati aplikacijo vidimo, da dobivamo CORS težave, saj je še en problem z default port od frontenda, v backendu je nastavljen na 3000, react pa začne na 5173. Ob popravkih tega zdaj spletna aplikacija deluje, le da je brez podatkov.
 
-![image4.png](slike/image4.png)
+Ena težava kar smo jo opazili, zdaj ko nima baza nič podatkov je da smo pozabili en statičen tekst zamenjati za dinamičnega:
+![image5.png](slike/image5.png)
