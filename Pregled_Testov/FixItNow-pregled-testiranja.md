@@ -57,16 +57,16 @@ Namen testiranja je preveriti osnovne uporabniške poti stranke in izvajalca ter
 
 Pri vsakem scenariju zabeležim konkretni dejanski rezultat in izberem stanje: uspešno, neuspešno, blokirano ali ni izvedeno. Če je scenarij neuspešen, dodam korake za ponovitev in po možnosti posnetek zaslona ali povezavo do GitHub issue. V dokumentacijo ne vključim gesel, žetonov ali osebnih podatkov.
 
-| ID | Scenarij in koraki | Pričakovani rezultat | Dejanski rezultat | Stanje |
-|---|---|---|---|---|
-| RT-01 | **Uspešna prijava.** Odprem prijavo, vnesem veljavne podatke potrjenega testnega računa brez 2FA in oddam obrazec. | Prijava uspe; na voljo je uporabniški del aplikacije. |  Prijava uspe.| Ni izvedeno |
-| RT-02 | **Napačno geslo.** Odjavim se in poskusim prijavo z istim računom ter napačnim geslom. | Prijava je zavrnjena; prikazano je obvestilo o napaki. Uporabniški del ni dostopen kot prijavljen uporabnik. |  prijava je zavrnjena.| Ni izvedeno |
-| RT-03 | **Ustvarjanje zahtevka.** Prijavim se kot stranka, odprem obrazec za nov zahtevek, izpolnim obvezna polja s testnimi podatki in oddam obrazec. Zabeležim ID zahtevka. | Zahtevek se ustvari; prikazani podatki ustrezajo vnosu, zahtevek je viden med zahtevki stranke. |  zahtevek se ustvari.| Ni izvedeno |
-| RT-04 | **Manjkajoči obvezni podatki.** Odprem obrazec za nov zahtevek, pustim eno obvezno polje prazno in poskusim oddati obrazec. Zabeležim izbrano polje. | Zahtevek se ne ustvari; uporabnik dobi razumljivo informacijo o manjkajočem podatku. |  zahtevek se ne ustvari| Ni izvedeno |
-| RT-05 | **Iskanje izvajalcev.** Odprem iskanje, izberem kategorijo, za katero obstaja aktiven testni izvajalec, in uporabim filter. Odprem njegov profil. | Rezultati ustrezajo izbranemu filtru; profil izbranega izvajalca je dostopen in prikazuje njegove podatke. | Rezultati ustrezajo izbranemu filtru | Ni izvedeno |
-| RT-06 | **Sprejem zahtevka.** Z aktivnim testnim izvajalcem ustrezne kategorije odprem razpoložljiv testni zahtevek in uporabim možnost sprejema. Nato preverim zahtevek še kot stranka. | Sprejem uspe; izvajalec je povezan z zahtevkom in obe strani vidita ustrezno posodobitev stanja. | Sprejem uspe | Ni izvedeno |
-| RT-07 | **Klepet.** Stranko in izvajalca iz RT-06 odprem v ločenih sejah brskalnika. V pripadajočem pogovoru pošljem testno sporočilo od stranke izvajalcu in nato odgovor nazaj. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Ni izvedeno |
-| RT-08 | **Odjava.** Odjavim se in poskusim ponovno odpreti stran, ki zahteva prijavo. | Seja ni več prijavljena; zaščitena stran zahteva prijavo oziroma ne omogoča zaščitenih dejanj. | Seja ni več prijavljena | Ni izvedeno |
+| ID | Scenarij in koraki | Pričakovani rezultat | Dejanski rezultat |
+|---|---|---|---|
+| RT-01 | **Uspešna prijava.** Odprem prijavo, vnesem veljavne podatke potrjenega testnega računa brez 2FA in oddam obrazec. | Prijava uspe; na voljo je uporabniški del aplikacije. |  Prijava uspe.|
+| RT-02 | **Napačno geslo.** Odjavim se in poskusim prijavo z istim računom ter napačnim geslom. | Prijava je zavrnjena; prikazano je obvestilo o napaki. Uporabniški del ni dostopen kot prijavljen uporabnik. |  prijava je zavrnjena.|
+| RT-03 | **Ustvarjanje zahtevka.** Prijavim se kot stranka, odprem obrazec za nov zahtevek, izpolnim obvezna polja s testnimi podatki in oddam obrazec. Zabeležim ID zahtevka. | Zahtevek se ustvari; prikazani podatki ustrezajo vnosu, zahtevek je viden med zahtevki stranke. |  zahtevek se ustvari.|
+| RT-04 | **Manjkajoči obvezni podatki.** Odprem obrazec za nov zahtevek, pustim eno obvezno polje prazno in poskusim oddati obrazec. Zabeležim izbrano polje. | Zahtevek se ne ustvari; uporabnik dobi razumljivo informacijo o manjkajočem podatku. |  zahtevek se ne ustvari|
+| RT-05 | **Iskanje izvajalcev.** Odprem iskanje, izberem kategorijo, za katero obstaja aktiven testni izvajalec, in uporabim filter. Odprem njegov profil. | Rezultati ustrezajo izbranemu filtru; profil izbranega izvajalca je dostopen in prikazuje njegove podatke. | Rezultati ustrezajo izbranemu filtru |
+| RT-06 | **Sprejem zahtevka.** Z aktivnim testnim izvajalcem ustrezne kategorije odprem razpoložljiv testni zahtevek in uporabim možnost sprejema. Nato preverim zahtevek še kot stranka. | Sprejem uspe; izvajalec je povezan z zahtevkom in obe strani vidita ustrezno posodobitev stanja. | Sprejem uspe |
+| RT-07 | **Klepet.** Stranko in izvajalca iz RT-06 odprem v ločenih sejah brskalnika. V pripadajočem pogovoru pošljem testno sporočilo od stranke izvajalcu in nato odgovor nazaj. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. |
+| RT-08 | **Odjava.** Odjavim se in poskusim ponovno odpreti stran, ki zahteva prijavo. | Seja ni več prijavljena; zaščitena stran zahteva prijavo oziroma ne omogoča zaščitenih dejanj. | Seja ni več prijavljena |
 
 ## Rezultati
 
