@@ -8,16 +8,16 @@ Večino testov sem napisal samostojno, pri delu testov pa sem si pomagal z umetn
 
 > **Pred oddajo dopolnim:** uporabljeno orodje za pisanje testov, njegovo vlogo, skupine testov, pri katerih sem ga uporabljal, in način preverjanja predlogov.
 
-| Vrsta aktivnosti | Stanje | Pokriti del rešitve | Orodja in ogrodja | Uporaba umetne inteligence in preverjanje |
+| Vrsta aktivnosti | Stanje | Pokriti del rešitve | Orodja in ogrodja |
 |---|---|---|---|---|
-| Testi enot poslovne logike | Implementirani in uspešno izvedeni v tem pregledu | Ustvarjanje zahtevkov, prehodi statusov, iskanje izvajalcev, administracija, izbris računa in uporabniške ocene | JUnit 5, Mockito, Spring Boot Starter Test, Maven Surefire | Del testov je bil pripravljen s pomočjo UI, večino sem napisal sam. Za to skupino dopolnim: **[orodje oziroma brez UI; način uporabe; preverjanje predlogov]**. Rezultat zagona je potrjen s poročili Surefire. |
-| Testi varnostne logike | Implementirani in uspešno izvedeni | Registracija in prijava, zavrnitev napačnih prijavnih podatkov, JWT, lastnosti uporabniškega računa in dvostopenjska avtentikacija | JUnit 5, Mockito, knjižnice JWT in TOTP | Del testov je bil pripravljen s pomočjo UI, večino sem napisal sam. Za to skupino dopolnim: **[orodje oziroma brez UI; način uporabe; preverjanje predlogov]**. Rezultat zagona je potrjen s poročili Surefire. |
-| Testi klepeta in omejevanja sporočil | Implementirani in uspešno izvedeni | Shranjevanje, urejanje, brisanje ter statusi sporočil, pravice udeležencev, dolžina, podvajanje in omejevanje pogostosti sporočil | JUnit 5, Mockito | Del testov je bil pripravljen s pomočjo UI, večino sem napisal sam. Za to skupino dopolnim: **[orodje oziroma brez UI; način uporabe; preverjanje predlogov]**. Rezultat zagona je potrjen s poročili Surefire. |
-| Testi pomožnih funkcij in e-pošte | Implementirani in uspešno izvedeni | Geografske razdalje, veljavnost in normalizacija IBAN, preslikava izjem v odgovore ter sestava potrditvenih sporočil in sporočil za ponastavitev gesla | JUnit 5, parametrizirani testi, Mockito | Del testov je bil pripravljen s pomočjo UI, večino sem napisal sam. Za to skupino dopolnim: **[orodje oziroma brez UI; način uporabe; preverjanje predlogov]**. Rezultat zagona je potrjen s poročili Surefire. |
-| Testi kontrolerjev oziroma HTTP-vmesnika | Implementirani in uspešno izvedeni | Končne točke za zahtevke, avtentikacijo, administracijo, izvajalce, ocene, shranjene izvajalce in obvestila; preverjanje statusov HTTP in vsebine JSON | Spring MockMvc s standaloneSetup, Mockito, JUnit 5 | Del testov je bil pripravljen s pomočjo UI, večino sem napisal sam. Za to skupino dopolnim: **[orodje oziroma brez UI; način uporabe; preverjanje predlogov]**. Rezultat zagona je potrjen s poročili Surefire. |
-| Statična analiza odjemalca | Nastavljena in izvedena; zaznanih 5 napak in 1 opozorilo | Izvorna koda odjemalca, pravila TypeScript in pravilna uporaba React Hooks | ESLint, typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh | Pri pregledu rezultatov je bil uporabljen OpenAI Codex; ugotovitve so podprte z izpisom npm run lint. Uporaba UI pri pripravi konfiguracije: **[dopolnim]**. |
-| Statično preverjanje tipov | Nastavljeno kot del gradnje; lokalno preverjanje aplikacije je neuspešno | Koda React/TypeScript ter konfiguracija Vite | TypeScript; ukaz za gradnjo vsebuje tsc -b && vite build | Pri pregledu rezultatov je bil uporabljen OpenAI Codex; ugotovitve so podprte z diagnostiko TypeScript. Uporaba UI pri pripravi konfiguracije: **[dopolnim]**. |
-| Avtomatizacija preverjanj in gradnje v CI/CD | Konfigurirana; uspešnost dejanskih oddaljenih zagonov ni preverjena; ugotovljene pomanjkljivosti | Zaledje: testi in gradnja JAR; odjemalec: predvideni testi in gradnja; nato objava | GitHub Actions, Maven, Node.js/npm, Heroku in Netlify | Pri pregledu konfiguracije je bil uporabljen OpenAI Codex; ugotovitve temeljijo na primerjavi workflowov in package.json oziroma pom.xml. Uporaba UI pri pripravi workflowov: **[dopolnim]**. |
+| Testi enot poslovne logike | Implementirani in uspešno izvedeni v tem pregledu | Ustvarjanje zahtevkov, prehodi statusov, iskanje izvajalcev, administracija, izbris računa in uporabniške ocene | JUnit 5, Mockito, Spring Boot Starter Test, Maven Surefire 
+| Testi varnostne logike | Implementirani in uspešno izvedeni | Registracija in prijava, zavrnitev napačnih prijavnih podatkov, JWT, lastnosti uporabniškega računa in dvostopenjska avtentikacija | JUnit 5, Mockito, knjižnice JWT in TOTP 
+| Testi klepeta in omejevanja sporočil | Implementirani in uspešno izvedeni | Shranjevanje, urejanje, brisanje ter statusi sporočil, pravice udeležencev, dolžina, podvajanje in omejevanje pogostosti sporočil | JUnit 5, Mockito 
+| Testi pomožnih funkcij in e-pošte | Implementirani in uspešno izvedeni | Geografske razdalje, veljavnost in normalizacija IBAN, preslikava izjem v odgovore ter sestava potrditvenih sporočil in sporočil za ponastavitev gesla | JUnit 5, parametrizirani testi, Mockito 
+| Testi kontrolerjev oziroma HTTP-vmesnika | Implementirani in uspešno izvedeni | Končne točke za zahtevke, avtentikacijo, administracijo, izvajalce, ocene, shranjene izvajalce in obvestila; preverjanje statusov HTTP in vsebine JSON | Spring MockMvc s standaloneSetup, Mockito, JUnit 5 
+| Statična analiza odjemalca | Nastavljena in izvedena; zaznanih 5 napak in 1 opozorilo | Izvorna koda odjemalca, pravila TypeScript in pravilna uporaba React Hooks | ESLint, typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh | Pri pregledu rezultatov je bil uporabljen OpenAI Codex; ugotovitve so podprte z izpisom npm run lint.|
+| Statično preverjanje tipov | Nastavljeno kot del gradnje; lokalno preverjanje aplikacije je neuspešno | Koda React/TypeScript ter konfiguracija Vite | TypeScript; ukaz za gradnjo vsebuje tsc -b && vite build | Pri pregledu rezultatov je bil uporabljen OpenAI Codex; ugotovitve so podprte z diagnostiko TypeScript. |
+| Avtomatizacija preverjanj in gradnje v CI/CD | Konfigurirana; uspešnost dejanskih oddaljenih zagonov ni preverjena; ugotovljene pomanjkljivosti | Zaledje: testi in gradnja JAR; odjemalec: predvideni testi in gradnja; nato objava | GitHub Actions, Maven, Node.js/npm, Heroku in Netlify | Pri pregledu konfiguracije je bil uporabljen OpenAI Codex; ugotovitve temeljijo na primerjavi workflowov in package.json oziroma pom.xml. |
 
 ## Rezultati lokalnega preverjanja
 
@@ -45,15 +45,47 @@ V pregledani kodi in konfiguracijah niso bili najdeni avtomatizirani testi odjem
 
 Oba workflowa GitHub Actions imata pri koraku testiranja `continue-on-error: true`, zato neuspešni testi ne preprečijo nadaljevanja do gradnje in morebitne objave. Zaledje se nato gradi z `mvn package -DskipTests`. Workflow odjemalca kliče `npm test -- --run`, vendar `frontend/package.json` nima skripte `test` in nima namenskega testnega ogrodja. Ta korak zato trenutno ne predstavlja delujočega preverjanja odjemalca. Ukaz `npm run lint` v pregledanem workflowu ni vključen. Workflowa se sprožita ob spremembah ustreznega dela na veji `main`; zaledje omogoča tudi ročni zagon. Preverjanje ob pull requestu ni nastavljeno.
 
-## Ročno testiranje in pregledi kode
 
-Za ročno testiranje še ni vključena evidenca izvedenih scenarijev. **[Dopolnim dejansko izvedene scenarije, datum, okolje, pričakovani rezultat in dejanski rezultat.]**
+# Ročno funkcionalno testiranje – FixItNow
 
-Zgodovina projekta vsebuje delo z vejami in združitve. Formalni pregledi kode v tem poročilu niso dokumentirani. **[Če so bili izvedeni, dopolnim način pregleda, pokrite dele in povezave do dokazov.]**
+Datum izvedbe: 12.10.2026 
+Brskalnik in različica: Safari 27.0.1 in Brave 1.96.61
+Naprava in operacijski sistem: MacBook Pro s OS golden gate 27.0.1 
+
+Namen testiranja je preveriti osnovne uporabniške poti stranke in izvajalca ter odziv aplikacije na nepravilne vnose. Spodnji scenariji so pripravljeni za izvedbo; njihova izvedba in rezultati še niso potrjeni. Testiranje poteka s testnimi računi in izmišljenimi zahtevki v lokalnem ali testnem okolju.
+
+## Testni scenariji
+
+Pri vsakem scenariju zabeležim konkretni dejanski rezultat in izberem stanje: uspešno, neuspešno, blokirano ali ni izvedeno. Če je scenarij neuspešen, dodam korake za ponovitev in po možnosti posnetek zaslona ali povezavo do GitHub issue. V dokumentacijo ne vključim gesel, žetonov ali osebnih podatkov.
+
+| ID | Scenarij in koraki | Pričakovani rezultat | Dejanski rezultat | Stanje |
+|---|---|---|---|---|
+| RT-01 | **Uspešna prijava.** Odprem prijavo, vnesem veljavne podatke potrjenega testnega računa brez 2FA in oddam obrazec. | Prijava uspe; na voljo je uporabniški del aplikacije. |  Prijava uspe.| Ni izvedeno |
+| RT-02 | **Napačno geslo.** Odjavim se in poskusim prijavo z istim računom ter napačnim geslom. | Prijava je zavrnjena; prikazano je obvestilo o napaki. Uporabniški del ni dostopen kot prijavljen uporabnik. |  prijava je zavrnjena.| Ni izvedeno |
+| RT-03 | **Ustvarjanje zahtevka.** Prijavim se kot stranka, odprem obrazec za nov zahtevek, izpolnim obvezna polja s testnimi podatki in oddam obrazec. Zabeležim ID zahtevka. | Zahtevek se ustvari; prikazani podatki ustrezajo vnosu, zahtevek je viden med zahtevki stranke. |  zahtevek se ustvari.| Ni izvedeno |
+| RT-04 | **Manjkajoči obvezni podatki.** Odprem obrazec za nov zahtevek, pustim eno obvezno polje prazno in poskusim oddati obrazec. Zabeležim izbrano polje. | Zahtevek se ne ustvari; uporabnik dobi razumljivo informacijo o manjkajočem podatku. |  zahtevek se ne ustvari| Ni izvedeno |
+| RT-05 | **Iskanje izvajalcev.** Odprem iskanje, izberem kategorijo, za katero obstaja aktiven testni izvajalec, in uporabim filter. Odprem njegov profil. | Rezultati ustrezajo izbranemu filtru; profil izbranega izvajalca je dostopen in prikazuje njegove podatke. | Rezultati ustrezajo izbranemu filtru | Ni izvedeno |
+| RT-06 | **Sprejem zahtevka.** Z aktivnim testnim izvajalcem ustrezne kategorije odprem razpoložljiv testni zahtevek in uporabim možnost sprejema. Nato preverim zahtevek še kot stranka. | Sprejem uspe; izvajalec je povezan z zahtevkom in obe strani vidita ustrezno posodobitev stanja. | Sprejem uspe | Ni izvedeno |
+| RT-07 | **Klepet.** Stranko in izvajalca iz RT-06 odprem v ločenih sejah brskalnika. V pripadajočem pogovoru pošljem testno sporočilo od stranke izvajalcu in nato odgovor nazaj. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Ni izvedeno |
+| RT-08 | **Odjava.** Odjavim se in poskusim ponovno odpreti stran, ki zahteva prijavo. | Seja ni več prijavljena; zaščitena stran zahteva prijavo oziroma ne omogoča zaščitenih dejanj. | Seja ni več prijavljena | Ni izvedeno |
+
+## Rezultati
+
+Izvedeni scenariji: 8. Uspešni: 8. Neuspešni: 0. Blokirani: 0. 
 
 ## Uporaba umetne inteligence
 
-Večino testov sem napisal samostojno, pri delu testov pa sem uporabil umetno inteligenco. Pri pisanju testov sem uporabljal **[ime orodja]** za **[dejanski namen uporabe]**. Predloge sem preveril z **[dejanski način preverjanja]**. Uporaba pri posameznih aktivnostih je navedena v tabeli.
+OpenAI Codex je bil uporabljen za pripravo osnutka ročnih testnih scenarijev in evidence rezultatov. Ustreznost pričakovanih rezultatov je treba preveriti glede na zahteve projekta; dejansko vedenje se preveri z izvedbo scenarijev v aplikaciji. **Po izvedbi sem dopolnil, katere scenarije sem izvedel in kako sem preveril oziroma prilagodil predloge.**
+
+## Povzetek za glavno poročilo – izpolnim po izvedbi
+
+Ročno funkcionalno testiranje sem izvedel 12.10.2026 v testen okolju, z brskalnikom Safari 27.0.1 in Brave 1.96.61 na MacBook Pro s OS golden gate 27.0.1 . Preveril sem prijavo, odjavo, nove zahtevke, klepet, iskanje izvajalaca. Od 8 izvedenih scenarijev jih je bilo 8 uspešnih in 0 neuspešnih. 
+
+
+
+## Uporaba umetne inteligence
+
+Večino testov sem napisal samostojno, pri delu testov pa sem uporabil umetno inteligenco. Pri pisanju testov sem uporabljal Claud agent. Predloge sem preveril z **[dejanski način preverjanja]**. Uporaba pri posameznih aktivnostih je navedena v tabeli.
 
 Za pripravo pregleda in dokumentacije je bil uporabljen OpenAI Codex. Podlago za navedene rezultate predstavljajo izvorna koda, konfiguracije, izpisi ESLint in TypeScript ter poročila Maven Surefire. Pri tem preverjanju niso bile izvedene ročne uporabniške poti.
 
