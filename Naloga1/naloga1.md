@@ -1,37 +1,34 @@
 # Naloga 1
 
+## 1. Zagon aplikacije in odprava začetnih težav
+
 Ko smo pognali zaledje aplikacije s komando: `mvn spring-boot:run` smo dobili naslednji error:
 
 ![image1.png](slike/image1.png)
 
-To se je zgodilo, ker pom.xml datoteka vsebuje dvojno definicijo istega groupId-ja:
+To se je zgodilo, ker `pom.xml` datoteka vsebuje dvojno definicijo istega groupId-ja / vtičnika:
 
 ![image2.png](slike/image2.png)
 
-Ko smo to popravili se je zaledje uspešno zagnalo.
+Ko smo to popravili, se je zaledje uspešno zagnalo.
 
-Ko smo pognali frontend `npm install` ukaz smo dobili naslednji error, vendar to ni napaka z aplikacijsko kodo vendar z windows sistemom, na katerem smo pognali ukaz, ko smo dodelili ustrezne pravice na windows sistemu, je ukaz deloval normalno:
+Ko smo pognali frontend `npm install` ukaz, smo dobili naslednji error (vendar to ni napaka z aplikacijsko kodo, temveč z Windows sistemom in pravicami, na katerem smo pognali ukaz; po dodelitvi ustreznih pravic je ukaz deloval normalno):
 
 ![image3.png](slike/image3.png)
 
-Če poizkusimi zdaj uporabljati aplikacijo vidimo, da dobivamo CORS težave, saj je še en problem z default port od frontenda, v backendu je nastavljen na 3000, react pa začne na 5173. Ob popravkih tega zdaj spletna aplikacija deluje, le da je brez podatkov.
+Če poizkusimo zdaj uporabljati aplikacijo, vidimo, da dobivamo CORS težave, saj je še en problem s privzetim portom frontenda: v zaledju je nastavljen na 3000, medtem ko React/Vite privzeto začne na 5173. Ob uskladitvi tega spletna aplikacija zdaj deluje, le da je še brez podatkov.
 
-Ena težava kar smo jo opazili, zdaj ko nima baza nič podatkov je da smo pozabili en statičen tekst zamenjati za dinamičnega:
+Ena težava, ki smo jo opazili, ko baza še nima podatkov, je, da je ostal statičen tekst namesto dinamičnega:
+
 ![image5.png](slike/image5.png)
 
 ---
 
-# Standardi kodiranja
-
-![image4.png](slike/image4.png)
-
-## Pregled in poročilo o standardih kodiranja v projektu FixItNow
+## 2. Standardi kodiranja v projektu FixItNow
 
 V sklopu analize projekta smo preverili obstoj dokumentacije standardov, definirali standarde kodiranja, analizirali njihovo doslednost v kodi ter identificirali odstopanja in dobre prakse.
 
----
-
-### 1. Pregled obstoječih standardov v projektu
+### 2.1 Pregled obstoječih standardov v projektu
 
 Pred analizo smo preučili, ali so v repozitoriju standardi kodiranja že kje formalno dokumentirani:
 - **Formalni dokument standardov:** V projektu **ni bilo enotnega, samostojnega dokumenta** (npr. `CODING_STANDARDS.md`), ki bi ekipi predpisoval celovite standarde kodiranja za zagotavljanje kakovosti.
@@ -42,11 +39,11 @@ Pred analizo smo preučili, ali so v repozitoriju standardi kodiranja že kje fo
 
 ---
 
-### 2. Definicija standardov kodiranja za projekt FixItNow
+### 2.2 Definicija standardov kodiranja za projekt FixItNow
 
 Ker projekt ni imel samostojne formalne specifikacije, smo na podlagi uveljavljenih dobrih praks za uporabljeni tehnološki sklad (Java 21 / Spring Boot 3 ter React 19 / TypeScript) definirali naslednje standarde:
 
-#### 2.1 Konvencije poimenovanja (Naming Conventions)
+#### Konvencije poimenovanja (Naming Conventions)
 
 | Element | Konvencija | Primer Backend | Primer Frontend |
 | :--- | :--- | :--- | :--- |
@@ -61,18 +58,18 @@ Ker projekt ni imel samostojne formalne specifikacije, smo na podlagi uveljavlje
 | **Datoteke** | Skladno z elementom, ki ga vsebujejo | `TicketServiceImpl.java` | Komponente: `PascalCase.tsx`, Pomožne: `camelCase.ts` |
 | **REST poti** | `kebab-case` (pri večbesednih virih in akcijah), množinski samostalniki, verzije | `/api/v1/saved-providers`, `/api/v1/auth/confirm-email` | / |
 
-#### 2.2 Oblikovanje kode (Code Formatting & Nesting)
+#### Oblikovanje kode (Code Formatting & Nesting)
 - **Zamiki (Indentation):** 4 presledki za Java kodo, 2 presledka za TypeScript/JSX in konfiguracije. Tabulatorji niso dovoljeni.
 - **Dolžina vrstic (Line Length):** Največ 120 znakov. Daljše stavke, veriženje metod ali dolge JSX lastnosti je potrebno prelomiti v več vrstic.
 - **Oklepaji (Braces):** K&R stil – odprti zaviti oklepaj `{` stoji v isti vrstici kot deklaracija ali pogoj.
 - **Gnezdenje (Nesting Depth):** Izogibanje gnezdenju globlje od 3–4 nivojev. Zahteva se uporaba vzorca zgodnjega izhoda (*guard clauses* / *early return*), namesto globoko gnezdenih `if-else` stavkov.
 
-#### 2.3 Komentiranje in dokumentacija
+#### Komentiranje in dokumentacija
 - **Dokumentacijski komentarji:** Vsi javni API krmilniki, servisni vmesniki in kompleksnejša poslovna logika morajo imeti `JavaDoc` oziroma `TSDoc` komentarje z opisom namena, parametrov in izjem.
 - **Namen komentarjev:** Komentarji morajo razlagati *razloge* in ozadje odločitev ("zakaj"), ne pa dobesednega prepisa delovanja kode ("kaj").
 - **Čistoča repozitorija:** Zakomentirana "mrtva" koda ni dovoljena; za sledenje zgodovini se uporablja sistem Git.
 
-#### 2.4 Arhitekturna in strukturna pravila
+#### Arhitekturna in strukturna pravila
 - **Krmilniki (Controllers):** Sprejmejo zahtevo, validirajo vnos z `@Valid`, delegirajo klic točno eni servisni metodi ter vrnejo `ResponseEntity`. Poslovna logika in neposredni klici repozitorijev v krmilnikih niso dovoljeni.
 - **DTO vzorec:** JPA entitete nikoli ne prečkajo meje krmilnika; uporabljajo se namenski DTO objekti (`*Request`, `*Response`).
 - **Injekcija odvisnosti:** Zahtevana je konstruktorska injekcija (preko Lombok `@RequiredArgsConstructor`). Uporaba `@Autowired` na poljih razreda je prepovedana.
@@ -80,11 +77,11 @@ Ker projekt ni imel samostojne formalne specifikacije, smo na podlagi uveljavlje
 
 ---
 
-### 3. Analiza upoštevanja standardov in ugotovljena odstopanja
+### 2.3 Analiza upoštevanja standardov in ugotovljena odstopanja
 
 Opravili smo statično analizo celotne kode (167 Java datotek z 10.933 vrsticami in 217 TypeScript/TSX datotek s 25.468 vrsticami).
 
-#### 3.1 Kje smo se standardov dosledno držali:
+#### 2.3.1 Kje smo se standardov dosledno držali:
 1. **Doslednost poimenovanja:**
    - Vsi Java razredi (100 %) dosledno sledijo `PascalCase`.
    - Vse Java metode (100 %) in funkcije na frontendu dosledno sledijo `camelCase`.
@@ -97,7 +94,7 @@ Opravili smo statično analizo celotne kode (167 Java datotek z 10.933 vrsticami
 4. **Enosmerna večnivojska arhitektura:**
    - Krmilniki ne komunicirajo neposredno z bazo, entitete se ne izpostavljajo v REST odgovorih, temveč se preslikujejo preko namenskih DTO razredov.
 
-#### 3.2 Ugotovljena odstopanja:
+#### 2.3.2 Ugotovljena odstopanja:
 1. **Izjema pri poimenovanju datotek v frontendu:**
    - Komponenta `frontend/src/components/confirm-email-card.tsx` je poimenovana v `kebab-case`, medtem ko vse ostale komponente uporabljajo `PascalCase` (`ConfirmEmailCard.tsx`).
 2. **Preseganje dolžine vrstice (več kot 120 znakov):**
@@ -120,7 +117,7 @@ Opravili smo statično analizo celotne kode (167 Java datotek z 10.933 vrsticami
 
 ---
 
-### 4. Pregled dobrih inženirskih praks v projektu
+### 2.4 Pregled dobrih inženirskih praks v projektu
 
 Poleg upoštevanja standardov projekt izkazuje številne napredne inženirske prakse:
 
@@ -141,11 +138,10 @@ Poleg upoštevanja standardov projekt izkazuje številne napredne inženirske pr
 
 ---
 
-### 5. Predlogi ukrepov za izboljšanje kakovosti (QA)
+### 2.5 Predlogi ukrepov za izboljšanje kakovosti (QA)
 
 Za nadaljnje zagotavljanje kakovosti projekta predlagamo naslednje ukrepe:
 1. **Avtomatizacija preverjanja stila v zaledju:** V `backend/pom.xml` vključiti `maven-checkstyle-plugin` ali `spotless-maven-plugin` z vnaprej definiranim pravilnikom Google Java Style.
 2. **Vključitev statične analize v CI/CD:** V GitHub Actions dodati koraka `mvn checkstyle:check` in `npm run lint` ter odstraniti `continue-on-error: true` pri izvajanju testov.
 3. **Čiščenje podvojitev:** Odstraniti odvečni `eslint.config.ts` (obdržati `eslint.config.js`) ter preimenovati `confirm-email-card.tsx` v `ConfirmEmailCard.tsx`.
 4. **Povečanje testne pokritosti:** Glede na obseg 167 razredov v zaledju razširiti zbirko 22 obstoječih testnih razredov s testi enot in integracijskimi testi za ključne poslovne servise.
-
