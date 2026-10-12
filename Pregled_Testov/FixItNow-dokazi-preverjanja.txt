@@ -1,0 +1,125 @@
+Datum: 12. 10. 2026
+Veja: dev
+Revizija: c9067f0
+
+ZALEDJE — USPEŠEN PONOVNI ZAGON
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.example.backend.service.ProviderSearchServiceImplTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 185, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  15.051 s
+[INFO] Finished at: 2026-10-12T10:51:36+02:00
+[INFO] ------------------------------------------------------------------------
+
+ESLINT
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/components/tracking/LiveTrackingPanel.tsx
+  55:38  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/components/tracking/LiveTrackingPanel.tsx:55:38
+  53 |
+  54 |   useEffect(() => {
+> 55 |     if (seedQuery.data && !snapshot) setSnapshot(seedQuery.data);
+     |                                      ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  56 |     // eslint-disable-next-line react-hooks/exhaustive-deps
+  57 |   }, [seedQuery.data]);
+  58 |  react-hooks/set-state-in-effect
+  77:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/components/tracking/LiveTrackingPanel.tsx:77:7
+  75 |     }
+  76 |     if (!("geolocation" in navigator)) {
+> 77 |       setGeoError("Geolocation isn't available in this browser.");
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  78 |       setSharing(false);
+  79 |       return;
+  80 |     }                                             react-hooks/set-state-in-effect
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/components/user-account/LocationModal.tsx
+  26:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/components/user-account/LocationModal.tsx:26:5
+  24 |   useEffect(() => {
+  25 |     if (!open) return;
+> 26 |     setAddress(saved?.address ?? "");
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |     setCoords(
+  28 |       saved?.latitude != null && saved?.longitude != null
+  29 |         ? { lat: saved.latitude, lng: saved.longitude }  react-hooks/set-state-in-effect
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/pages/ChatPage.tsx
+  624:6  warning  React Hook useMemo has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/pages/NewTicketsPage.tsx
+  100:64  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/pages/NewTicketsPage.tsx:100:64
+   98 |   useEffect(() => {
+   99 |     if (locationInitRef.current) return;
+> 100 |     if (savedForm?.location) { locationInitRef.current = true; setLocationMode("CUSTOM"); return; }
+      |                                                                ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  101 |     if (savedLocation?.address && location.trim() === "") {
+  102 |       locationInitRef.current = true;
+  103 |       setLocationMode("SAVED");  react-hooks/set-state-in-effect
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/pages/TicketDetailPage.tsx
+  265:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/alanlabas/FAKS_2.Letnik/Praktikum2/FixItNow/frontend/src/pages/TicketDetailPage.tsx:265:7
+  263 |
+  264 |     if (payment === "success") {
+> 265 |       setConfirmingPayment(true);
+      |       ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  266 |       confirmPayment(ticketId, accessToken)
+  267 |         .then(() => {
+  268 |           queryClient.invalidateQueries({ queryKey: ["tickets", ticketId] });  react-hooks/set-state-in-effect
+
+✖ 6 problems (5 errors, 1 warning)
+
+
+
+TYPESCRIPT APLIKACIJA
+src/components/provider-account/VisitorProfile.tsx(39,33): error TS2339: Property 'phoneNumber' does not exist on type 'ProviderDto'.
+
+
+TYPESCRIPT KONFIGURACIJA VITE
+Brez diagnostičnih napak.
