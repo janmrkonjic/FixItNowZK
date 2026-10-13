@@ -31,6 +31,7 @@ V sklopu analize projekta smo preverili obstoj dokumentacije standardov, definir
 ### 2.1 Pregled obstoječih standardov v projektu
 
 Pred analizo smo preučili, ali so v repozitoriju standardi kodiranja že kje formalno dokumentirani:
+
 - **Formalni dokument standardov:** V projektu **ni bilo enotnega, samostojnega dokumenta** (npr. `CODING_STANDARDS.md`), ki bi ekipi predpisoval celovite standarde kodiranja za zagotavljanje kakovosti.
 - **Interna navodila (`CLAUDE.md` datoteke):** V datotekah `CLAUDE.md`, `backend/CLAUDE.md` in `frontend/CLAUDE.md` so bila zapisana ključna arhitekturna pravila, konvencije poimenovanja plasti (DTO, storitve, krmilniki, domena) ter varnostne zahteve.
 - **Konfiguracija stila (`.editorconfig`):** V obeh delih projekta (`backend/.editorconfig` in `frontend/.editorconfig`) so določena pravila formatiranja: nabor znakov UTF-8, zaključki vrstic LF, odstranjevanje odvečnih presledkov, zamiki (4 presledki za Javo, 2 za TypeScript/JSON) ter omejitev dolžine vrstice na 120 znakov v zaledju.
@@ -45,31 +46,34 @@ Ker projekt ni imel samostojne formalne specifikacije, smo na podlagi uveljavlje
 
 #### Konvencije poimenovanja (Naming Conventions)
 
-| Element | Konvencija | Primer Backend | Primer Frontend |
-| :--- | :--- | :--- | :--- |
-| **Razredi / Komponente** | `PascalCase` samostalnik | `TicketController`, `ChatRateLimiter` | `TicketCard`, `LoginForm` |
-| **Vmesniki (Interfaces)** | `PascalCase` brez predpone `I` | `TicketService`, `UserRepository` | `interface AuthState` |
-| **Metode in funkcije** | `camelCase`, glagolski začetek | `createTicket()`, `findByEmail()` | `fetchTickets()`, `formatDate()` |
-| **React Hooks** | `camelCase` s predpono `use` | / | `useTicketsQuery`, `useAuth` |
-| **Spremenljivke in polja**| `camelCase` brez madžarske notacije | `customerEmail`, `ticketStatus` | `isPending`, `selectedDate` |
-| **Konstante** | `SCREAMING_SNAKE_CASE` | `MAX_LENGTH`, `DEFAULT_PAGE_SIZE` | `API_BASE_URL` |
-| **Enumi** | Tip `PascalCase`, vrednosti `SCREAMING_SNAKE_CASE` | `TicketStatus.IN_PROGRESS` | `UserRole.PROVIDER` |
-| **Paketi in mape** | Male črke, brez podčrtajev | `com.example.backend.service` | `src/components/common` |
-| **Datoteke** | Skladno z elementom, ki ga vsebujejo | `TicketServiceImpl.java` | Komponente: `PascalCase.tsx`, Pomožne: `camelCase.ts` |
-| **REST poti** | `kebab-case` (pri večbesednih virih in akcijah), množinski samostalniki, verzije | `/api/v1/saved-providers`, `/api/v1/auth/confirm-email` | / |
+| Element                    | Konvencija                                                                       | Primer Backend                                          | Primer Frontend                                       |
+| :------------------------- | :------------------------------------------------------------------------------- | :------------------------------------------------------ | :---------------------------------------------------- |
+| **Razredi / Komponente**   | `PascalCase` samostalnik                                                         | `TicketController`, `ChatRateLimiter`                   | `TicketCard`, `LoginForm`                             |
+| **Vmesniki (Interfaces)**  | `PascalCase` brez predpone `I`                                                   | `TicketService`, `UserRepository`                       | `interface AuthState`                                 |
+| **Metode in funkcije**     | `camelCase`, glagolski začetek                                                   | `createTicket()`, `findByEmail()`                       | `fetchTickets()`, `formatDate()`                      |
+| **React Hooks**            | `camelCase` s predpono `use`                                                     | /                                                       | `useTicketsQuery`, `useAuth`                          |
+| **Spremenljivke in polja** | `camelCase` brez madžarske notacije                                              | `customerEmail`, `ticketStatus`                         | `isPending`, `selectedDate`                           |
+| **Konstante**              | `SCREAMING_SNAKE_CASE`                                                           | `MAX_LENGTH`, `DEFAULT_PAGE_SIZE`                       | `API_BASE_URL`                                        |
+| **Enumi**                  | Tip `PascalCase`, vrednosti `SCREAMING_SNAKE_CASE`                               | `TicketStatus.IN_PROGRESS`                              | `UserRole.PROVIDER`                                   |
+| **Paketi in mape**         | Male črke, brez podčrtajev                                                       | `com.example.backend.service`                           | `src/components/common`                               |
+| **Datoteke**               | Skladno z elementom, ki ga vsebujejo                                             | `TicketServiceImpl.java`                                | Komponente: `PascalCase.tsx`, Pomožne: `camelCase.ts` |
+| **REST poti**              | `kebab-case` (pri večbesednih virih in akcijah), množinski samostalniki, verzije | `/api/v1/saved-providers`, `/api/v1/auth/confirm-email` | /                                                     |
 
 #### Oblikovanje kode (Code Formatting & Nesting)
+
 - **Zamiki (Indentation):** 4 presledki za Java kodo, 2 presledka za TypeScript/JSX in konfiguracije. Tabulatorji niso dovoljeni.
 - **Dolžina vrstic (Line Length):** Največ 120 znakov. Daljše stavke, veriženje metod ali dolge JSX lastnosti je potrebno prelomiti v več vrstic.
 - **Oklepaji (Braces):** K&R stil – odprti zaviti oklepaj `{` stoji v isti vrstici kot deklaracija ali pogoj.
-- **Gnezdenje (Nesting Depth):** Izogibanje gnezdenju globlje od 3–4 nivojev. Zahteva se uporaba vzorca zgodnjega izhoda (*guard clauses* / *early return*), namesto globoko gnezdenih `if-else` stavkov.
+- **Gnezdenje (Nesting Depth):** Izogibanje gnezdenju globlje od 3–4 nivojev. Zahteva se uporaba vzorca zgodnjega izhoda (_guard clauses_ / _early return_), namesto globoko gnezdenih `if-else` stavkov.
 
 #### Komentiranje in dokumentacija
+
 - **Dokumentacijski komentarji:** Vsi javni API krmilniki, servisni vmesniki in kompleksnejša poslovna logika morajo imeti `JavaDoc` oziroma `TSDoc` komentarje z opisom namena, parametrov in izjem.
-- **Namen komentarjev:** Komentarji morajo razlagati *razloge* in ozadje odločitev ("zakaj"), ne pa dobesednega prepisa delovanja kode ("kaj").
+- **Namen komentarjev:** Komentarji morajo razlagati _razloge_ in ozadje odločitev ("zakaj"), ne pa dobesednega prepisa delovanja kode ("kaj").
 - **Čistoča repozitorija:** Zakomentirana "mrtva" koda ni dovoljena; za sledenje zgodovini se uporablja sistem Git.
 
 #### Arhitekturna in strukturna pravila
+
 - **Krmilniki (Controllers):** Sprejmejo zahtevo, validirajo vnos z `@Valid`, delegirajo klic točno eni servisni metodi ter vrnejo `ResponseEntity`. Poslovna logika in neposredni klici repozitorijev v krmilnikih niso dovoljeni.
 - **DTO vzorec:** JPA entitete nikoli ne prečkajo meje krmilnika; uporabljajo se namenski DTO objekti (`*Request`, `*Response`).
 - **Injekcija odvisnosti:** Zahtevana je konstruktorska injekcija (preko Lombok `@RequiredArgsConstructor`). Uporaba `@Autowired` na poljih razreda je prepovedana.
@@ -82,6 +86,7 @@ Ker projekt ni imel samostojne formalne specifikacije, smo na podlagi uveljavlje
 Opravili smo statično analizo celotne kode (167 Java datotek z 10.933 vrsticami in 217 TypeScript/TSX datotek s 25.468 vrsticami).
 
 #### 2.3.1 Kje smo se standardov dosledno držali:
+
 1. **Doslednost poimenovanja:**
    - Vsi Java razredi (100 %) dosledno sledijo `PascalCase`.
    - Vse Java metode (100 %) in funkcije na frontendu dosledno sledijo `camelCase`.
@@ -95,6 +100,7 @@ Opravili smo statično analizo celotne kode (167 Java datotek z 10.933 vrsticami
    - Krmilniki ne komunicirajo neposredno z bazo, entitete se ne izpostavljajo v REST odgovorih, temveč se preslikujejo preko namenskih DTO razredov.
 
 #### 2.3.2 Ugotovljena odstopanja:
+
 1. **Izjema pri poimenovanju datotek v frontendu:**
    - Komponenta `frontend/src/components/confirm-email-card.tsx` je poimenovana v `kebab-case`, medtem ko vse ostale komponente uporabljajo `PascalCase` (`ConfirmEmailCard.tsx`).
 2. **Preseganje dolžine vrstice (več kot 120 znakov):**
@@ -141,28 +147,38 @@ Poleg upoštevanja standardov projekt izkazuje številne napredne inženirske pr
 ### 2.5 Predlogi ukrepov za izboljšanje kakovosti (QA)
 
 Za nadaljnje zagotavljanje kakovosti projekta predlagamo naslednje ukrepe:
+
 1. **Avtomatizacija preverjanja stila v zaledju:** V `backend/pom.xml` vključiti `maven-checkstyle-plugin` ali `spotless-maven-plugin` z vnaprej definiranim pravilnikom Google Java Style.
 2. **Vključitev statične analize v CI/CD:** V GitHub Actions dodati koraka `mvn checkstyle:check` in `npm run lint` ter odstraniti `continue-on-error: true` pri izvajanju testov.
-3. **Čiščenje podvojitev:** Odstraniti odvečni `eslint.config.ts` (obdržati `eslint.config.js`) ter preimenovati `confirm-email-card.tsx` v `ConfirmEmailCard.tsx`.
-4. **Povečanje testne pokritosti:** Glede na obseg 167 razredov v zaledju razširiti zbirko 22 obstoječih testnih razredov s testi enot in integracijskimi testi za ključne poslovne servise.
+3. **Čiščenje podvojitev:** Odstraniti odvečni `eslint.config.ts` (obdržati `eslint.config.js`).
 
+---
 
-# Pregled testiranja in zagotavljanja kakovosti – FixItNow
+### 2.6 Izveden popravek datoteke v skladu s standardi
+
+V skladu z navodili naloge smo odpravili identificirano odstopanje pri poimenovanju datoteke komponente na odjemalcu:
+
+- **Popravljena datoteka:** `frontend/src/components/confirm-email-card.tsx` → `frontend/src/components/ConfirmEmailCard.tsx`
+- **Utemeljitev popravka:** Skladno z definiranim standardom poimenovanja v razdelku 2.2 morajo vse datoteke React komponent dosledno uporabljati konvencijo `PascalCase` (`Komponente: PascalCase.tsx`). Prejšnje ime `confirm-email-card.tsx` je bilo edino odstopanje med vsemi komponentami v celotnem projektu. Z uveljavitvijo spremembe je poimenovanje komponent sedaj 100-odstotno konsistentno.
+
+---
+
+## 3. Pregled testiranja in zagotavljanja kakovosti – FixItNow
 
 Pregled je bil izveden 12. 10. 2026 na lokalni veji `dev`, pri reviziji `c9067f0`. Projekt vsebuje zaledje Java/Spring Boot in odjemalec React/TypeScript. Ugotovitve temeljijo na pregledu izvorne kode, konfiguracij ter lokalnem zagonu testov in statičnih preverjanj. Stanje zadnjih zagonov na GitHub Actions ni bilo preverjeno.
 
 ## Aktivnosti, ki so že prisotne
 
-| Vrsta aktivnosti | Stanje | Pokriti del rešitve | Orodja in ogrodja |
-|---|---|---|---|
-| Testi enot poslovne logike | Implementirani in uspešno izvedeni v tem pregledu | Ustvarjanje zahtevkov, prehodi statusov, iskanje izvajalcev, administracija, izbris računa in uporabniške ocene | JUnit 5, Mockito, Spring Boot Starter Test, Maven Surefire |
-| Testi varnostne logike | Implementirani in uspešno izvedeni | Registracija in prijava, zavrnitev napačnih prijavnih podatkov, JWT, lastnosti uporabniškega računa in dvostopenjska avtentikacija | JUnit 5, Mockito, knjižnice JWT in TOTP |
-| Testi klepeta in omejevanja sporočil | Implementirani in uspešno izvedeni | Shranjevanje, urejanje, brisanje ter statusi sporočil, pravice udeležencev, dolžina, podvajanje in omejevanje pogostosti sporočil | JUnit 5, Mockito |
-| Testi pomožnih funkcij in e-pošte | Implementirani in uspešno izvedeni | Geografske razdalje, veljavnost in normalizacija IBAN, preslikava izjem v odgovore ter sestava potrditvenih sporočil in sporočil za ponastavitev gesla | JUnit 5, parametrizirani testi, Mockito |
-| Testi kontrolerjev oziroma HTTP-vmesnika | Implementirani in uspešno izvedeni | Končne točke za zahtevke, avtentikacijo, administracijo, izvajalce, ocene, shranjene izvajalce in obvestila; preverjanje statusov HTTP in vsebine JSON | Spring MockMvc s standaloneSetup, Mockito, JUnit 5 |
-| Statična analiza odjemalca | Nastavljena in izvedena; zaznanih 5 napak in 1 opozorilo | Izvorna koda odjemalca, pravila TypeScript in pravilna uporaba React Hooks | ESLint, typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh |
-| Statično preverjanje tipov | Nastavljeno kot del gradnje; lokalno preverjanje aplikacije je neuspešno | Koda React/TypeScript ter konfiguracija Vite | TypeScript; ukaz za gradnjo vsebuje tsc -b && vite build |
-| Avtomatizacija preverjanj in gradnje v CI/CD | Konfigurirana; uspešnost dejanskih oddaljenih zagonov ni preverjena; ugotovljene pomanjkljivosti | Zaledje: testi in gradnja JAR; odjemalec: predvideni testi in gradnja; nato objava | GitHub Actions, Maven, Node.js/npm, Heroku in Netlify |
+| Vrsta aktivnosti                             | Stanje                                                                                           | Pokriti del rešitve                                                                                                                                    | Orodja in ogrodja                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Testi enot poslovne logike                   | Implementirani in uspešno izvedeni v tem pregledu                                                | Ustvarjanje zahtevkov, prehodi statusov, iskanje izvajalcev, administracija, izbris računa in uporabniške ocene                                        | JUnit 5, Mockito, Spring Boot Starter Test, Maven Surefire                        |
+| Testi varnostne logike                       | Implementirani in uspešno izvedeni                                                               | Registracija in prijava, zavrnitev napačnih prijavnih podatkov, JWT, lastnosti uporabniškega računa in dvostopenjska avtentikacija                     | JUnit 5, Mockito, knjižnice JWT in TOTP                                           |
+| Testi klepeta in omejevanja sporočil         | Implementirani in uspešno izvedeni                                                               | Shranjevanje, urejanje, brisanje ter statusi sporočil, pravice udeležencev, dolžina, podvajanje in omejevanje pogostosti sporočil                      | JUnit 5, Mockito                                                                  |
+| Testi pomožnih funkcij in e-pošte            | Implementirani in uspešno izvedeni                                                               | Geografske razdalje, veljavnost in normalizacija IBAN, preslikava izjem v odgovore ter sestava potrditvenih sporočil in sporočil za ponastavitev gesla | JUnit 5, parametrizirani testi, Mockito                                           |
+| Testi kontrolerjev oziroma HTTP-vmesnika     | Implementirani in uspešno izvedeni                                                               | Končne točke za zahtevke, avtentikacijo, administracijo, izvajalce, ocene, shranjene izvajalce in obvestila; preverjanje statusov HTTP in vsebine JSON | Spring MockMvc s standaloneSetup, Mockito, JUnit 5                                |
+| Statična analiza odjemalca                   | Nastavljena in izvedena; zaznanih 5 napak in 1 opozorilo                                         | Izvorna koda odjemalca, pravila TypeScript in pravilna uporaba React Hooks                                                                             | ESLint, typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh |
+| Statično preverjanje tipov                   | Nastavljeno kot del gradnje; lokalno preverjanje aplikacije je neuspešno                         | Koda React/TypeScript ter konfiguracija Vite                                                                                                           | TypeScript; ukaz za gradnjo vsebuje tsc -b && vite build                          |
+| Avtomatizacija preverjanj in gradnje v CI/CD | Konfigurirana; uspešnost dejanskih oddaljenih zagonov ni preverjena; ugotovljene pomanjkljivosti | Zaledje: testi in gradnja JAR; odjemalec: predvideni testi in gradnja; nato objava                                                                     | GitHub Actions, Maven, Node.js/npm, Heroku in Netlify                             |
 
 ## Rezultati lokalnega preverjanja
 
@@ -190,45 +206,50 @@ V pregledani kodi in konfiguracijah niso bili najdeni avtomatizirani testi odjem
 
 Oba workflowa GitHub Actions imata pri koraku testiranja `continue-on-error: true`, zato neuspešni testi ne preprečijo nadaljevanja do gradnje in morebitne objave. Zaledje se nato gradi z `mvn package -DskipTests`. Workflow odjemalca kliče `npm test -- --run`, vendar `frontend/package.json` nima skripte `test` in nima namenskega testnega ogrodja. Ta korak zato trenutno ne predstavlja delujočega preverjanja odjemalca. Ukaz `npm run lint` v pregledanem workflowu ni vključen. Workflowa se sprožita ob spremembah ustreznega dela na veji `main`; zaledje omogoča tudi ročni zagon. Preverjanje ob pull requestu ni nastavljeno.
 
+---
 
-# Ročno funkcionalno testiranje – FixItNow
+## 4. Ročno funkcionalno testiranje – FixItNow
 
-Datum izvedbe: 12.10.2026 
+Datum izvedbe: 12.10.2026
 Brskalnik in različica: Safari 27.0.1 in Brave 1.96.61
-Naprava in operacijski sistem: MacBook Pro s OS golden gate 27.0.1 
+Naprava in operacijski sistem: MacBook Pro s OS golden gate 27.0.1
 
 Namen testiranja je preveriti osnovne uporabniške poti stranke in izvajalca ter odziv aplikacije na nepravilne vnose. Spodnji scenariji so pripravljeni za izvedbo; njihova izvedba in rezultati še niso potrjeni. Testiranje poteka s testnimi računi in izmišljenimi zahtevki v lokalnem ali testnem okolju.
 
-## Testni scenariji
+### 4.1 Testni scenariji
 
 Pri vsakem scenariju zabeležim konkretni dejanski rezultat in izberem stanje: uspešno, neuspešno, blokirano ali ni izvedeno. Če je scenarij neuspešen, dodam korake za ponovitev in po možnosti posnetek zaslona ali povezavo do GitHub issue. V dokumentacijo ne vključim gesel, žetonov ali osebnih podatkov.
 
-| ID | Scenarij in koraki | Pričakovani rezultat | Dejanski rezultat |
-|---|---|---|---|
-| RT-01 | **Uspešna prijava.** Odprem prijavo, vnesem veljavne podatke potrjenega testnega računa brez 2FA in oddam obrazec. | Prijava uspe; na voljo je uporabniški del aplikacije. |  Prijava uspe.|
-| RT-02 | **Napačno geslo.** Odjavim se in poskusim prijavo z istim računom ter napačnim geslom. | Prijava je zavrnjena; prikazano je obvestilo o napaki. Uporabniški del ni dostopen kot prijavljen uporabnik. |  prijava je zavrnjena.|
-| RT-03 | **Ustvarjanje zahtevka.** Prijavim se kot stranka, odprem obrazec za nov zahtevek, izpolnim obvezna polja s testnimi podatki in oddam obrazec. Zabeležim ID zahtevka. | Zahtevek se ustvari; prikazani podatki ustrezajo vnosu, zahtevek je viden med zahtevki stranke. |  zahtevek se ustvari.|
-| RT-04 | **Manjkajoči obvezni podatki.** Odprem obrazec za nov zahtevek, pustim eno obvezno polje prazno in poskusim oddati obrazec. Zabeležim izbrano polje. | Zahtevek se ne ustvari; uporabnik dobi razumljivo informacijo o manjkajočem podatku. |  zahtevek se ne ustvari|
-| RT-05 | **Iskanje izvajalcev.** Odprem iskanje, izberem kategorijo, za katero obstaja aktiven testni izvajalec, in uporabim filter. Odprem njegov profil. | Rezultati ustrezajo izbranemu filtru; profil izbranega izvajalca je dostopen in prikazuje njegove podatke. | Rezultati ustrezajo izbranemu filtru |
-| RT-06 | **Sprejem zahtevka.** Z aktivnim testnim izvajalcem ustrezne kategorije odprem razpoložljiv testni zahtevek in uporabim možnost sprejema. Nato preverim zahtevek še kot stranka. | Sprejem uspe; izvajalec je povezan z zahtevkom in obe strani vidita ustrezno posodobitev stanja. | Sprejem uspe |
-| RT-07 | **Klepet.** Stranko in izvajalca iz RT-06 odprem v ločenih sejah brskalnika. V pripadajočem pogovoru pošljem testno sporočilo od stranke izvajalcu in nato odgovor nazaj. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. |
-| RT-08 | **Odjava.** Odjavim se in poskusim ponovno odpreti stran, ki zahteva prijavo. | Seja ni več prijavljena; zaščitena stran zahteva prijavo oziroma ne omogoča zaščitenih dejanj. | Seja ni več prijavljena |
+| ID    | Scenarij in koraki                                                                                                                                                               | Pričakovani rezultat                                                                                         | Dejanski rezultat                                                                            |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| RT-01 | **Uspešna prijava.** Odprem prijavo, vnesem veljavne podatke potrjenega testnega računa brez 2FA in oddam obrazec.                                                               | Prijava uspe; na voljo je uporabniški del aplikacije.                                                        | Prijava uspe.                                                                                |
+| RT-02 | **Napačno geslo.** Odjavim se in poskusim prijavo z istim računom ter napačnim geslom.                                                                                           | Prijava je zavrnjena; prikazano je obvestilo o napaki. Uporabniški del ni dostopen kot prijavljen uporabnik. | prijava je zavrnjena.                                                                        |
+| RT-03 | **Ustvarjanje zahtevka.** Prijavim se kot stranka, odprem obrazec za nov zahtevek, izpolnim obvezna polja s testnimi podatki in oddam obrazec. Zabeležim ID zahtevka.            | Zahtevek se ustvari; prikazani podatki ustrezajo vnosu, zahtevek je viden med zahtevki stranke.              | zahtevek se ustvari.                                                                         |
+| RT-04 | **Manjkajoči obvezni podatki.** Odprem obrazec za nov zahtevek, pustim eno obvezno polje prazno in poskusim oddati obrazec. Zabeležim izbrano polje.                             | Zahtevek se ne ustvari; uporabnik dobi razumljivo informacijo o manjkajočem podatku.                         | zahtevek se ne ustvari                                                                       |
+| RT-05 | **Iskanje izvajalcev.** Odprem iskanje, izberem kategorijo, za katero obstaja aktiven testni izvajalec, in uporabim filter. Odprem njegov profil.                                | Rezultati ustrezajo izbranemu filtru; profil izbranega izvajalca je dostopen in prikazuje njegove podatke.   | Rezultati ustrezajo izbranemu filtru                                                         |
+| RT-06 | **Sprejem zahtevka.** Z aktivnim testnim izvajalcem ustrezne kategorije odprem razpoložljiv testni zahtevek in uporabim možnost sprejema. Nato preverim zahtevek še kot stranka. | Sprejem uspe; izvajalec je povezan z zahtevkom in obe strani vidita ustrezno posodobitev stanja.             | Sprejem uspe                                                                                 |
+| RT-07 | **Klepet.** Stranko in izvajalca iz RT-06 odprem v ločenih sejah brskalnika. V pripadajočem pogovoru pošljem testno sporočilo od stranke izvajalcu in nato odgovor nazaj.        | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani.                 | Sporočili sta prikazani obema udeležencema v ustreznem pogovoru brez ročne osvežitve strani. |
+| RT-08 | **Odjava.** Odjavim se in poskusim ponovno odpreti stran, ki zahteva prijavo.                                                                                                    | Seja ni več prijavljena; zaščitena stran zahteva prijavo oziroma ne omogoča zaščitenih dejanj.               | Seja ni več prijavljena                                                                      |
 
-## Rezultati
+### 4.2 Rezultati ročnega testiranja
 
-Izvedeni scenariji: 8. Uspešni: 8. Neuspešni: 0. Blokirani: 0. 
+Izvedeni scenariji: 8. Uspešni: 8. Neuspešni: 0. Blokirani: 0.
 
-## Povzetek za glavno poročilo – izpolnim po izvedbi
+Ročno funkcionalno testiranje je bilo izvedeno 12.10.2026 v testnem okolju, z brskalnikom Safari 27.0.1 in Brave 1.96.61 na MacBook Pro s OS golden gate 27.0.1. Preverjeni so bili prijava, odjava, novi zahtevki, klepet ter iskanje izvajalcev. Vseh 8 scenarijev je bilo uspešnih.
 
-Ročno funkcionalno testiranje sem izvedel 12.10.2026 v testen okolju, z brskalnikom Safari 27.0.1 in Brave 1.96.61 na MacBook Pro s OS golden gate 27.0.1 . Preveril sem prijavo, odjavo, nove zahtevke, klepet, iskanje izvajalaca. Od 8 izvedenih scenarijev jih je bilo 8 uspešnih in 0 neuspešnih. 
+---
 
+## 5. Uporaba orodij umetne inteligence
 
+Pri izdelavi naloge smo v skladu z navodili transparentno zabeležili uporabo generativnih orodij umetne inteligence:
 
-## Uporaba umetne inteligence
+1. **Avtonomni programerski agent (Antigravity):**
+   - **Namen:** Statična analiza celotnega repozitorija (več kot 36.000 vrstic kode v 384 datotekah) za identifikacijo obstoječih smernic, preverjanje skladnosti s standardi kodiranja (konvencije poimenovanja, globina gnezdenja, prepoved rabe `@Autowired` in `any`), odkrivanje odstopanj ter strukturiranje predlogov za QA.
+   - **Način preverjanja:** Zagon namenskih analitičnih skript neposredno v okolju, neodvisni ročni pregled identificiranih odstopanj ter primerjava z arhitekturnimi smernicami v kodi.
 
-OpenAI Codex sem uporabil kot pomoč pri pripravi pregleda testiranja, dokumentacije in osnutka ročnih testnih scenarijev. Navedeni rezultati avtomatiziranih preverjanj temeljijo na izpisih ESLint in TypeScript ter poročilih Maven Surefire, ugotovitve o konfiguraciji pa na pregledu izvorne kode in konfiguracijskih datotek.
-
-Ročne testne scenarije sem izvedel sam in v dokument vnesel dejanske rezultate. Umetna inteligenca mi je pri tem pomagala pri pripravi scenarijev in urejanju evidence rezultatov.
+2. **OpenAI Codex:**
+   - **Namen:** Pomoč pri pripravi pregleda stanja testiranja, dokumentacije in osnutka ročnih testnih scenarijev.
+   - **Način preverjanja:** Rezultati avtomatiziranih preverjanj so bili neposredno verificirani z lokalnim zagonom `mvn test`, `npm run lint` in TypeScript diagnostiko. Vseh 8 ročnih testnih scenarijev je član ekipe osebno izvedel v delujoči aplikaciji.
 
 ## Ocena trenutnega stanja in nadaljnji koraki
 
@@ -236,29 +257,29 @@ Projekt FixItNow že vsebuje avtomatizirane teste zaledja, teste HTTP-kontrolerj
 
 ## Evidenca testnih razredov
 
-| Razred | Izvedeni primeri | Rezultat |
-|---|---:|---|
-| `ChatServiceTest` | 17 | Uspešno |
-| `TicketControllerTest` | 5 | Uspešno |
-| `TicketServiceTest` | 6 | Uspešno |
-| `GeoUtilsTest` | 6 | Uspešno |
-| `IbanValidatorTest` | 15 | Uspešno |
-| `GlobalExceptionHandlerTest` | 9 | Uspešno |
-| `JwtTokenProviderTest` | 4 | Uspešno |
-| `UserPrincipalTest` | 13 | Uspešno |
-| `AccountDeletionServiceTest` | 8 | Uspešno |
-| `AdminServiceImplTest` | 19 | Uspešno |
-| `ChatRateLimiterTest` | 12 | Uspešno |
-| `ProviderSearchServiceImplTest` | 8 | Uspešno |
-| `ReviewServiceImplTest` | 12 | Uspešno |
-| `TwoFactorServiceImplTest` | 10 | Uspešno |
-| `AuthServiceImplTest` | 7 | Uspešno |
-| `EmailServiceImplTest` | 2 | Uspešno |
-| `AdminControllerTest` | 10 | Uspešno |
-| `AuthControllerTest` | 2 | Uspešno |
-| `NotificationControllerTest` | 5 | Uspešno |
-| `ProviderControllerTest` | 4 | Uspešno |
-| `ReviewControllerTest` | 5 | Uspešno |
-| `SavedProviderControllerTest` | 6 | Uspešno |
+| Razred                          | Izvedeni primeri | Rezultat |
+| ------------------------------- | ---------------: | -------- |
+| `ChatServiceTest`               |               17 | Uspešno  |
+| `TicketControllerTest`          |                5 | Uspešno  |
+| `TicketServiceTest`             |                6 | Uspešno  |
+| `GeoUtilsTest`                  |                6 | Uspešno  |
+| `IbanValidatorTest`             |               15 | Uspešno  |
+| `GlobalExceptionHandlerTest`    |                9 | Uspešno  |
+| `JwtTokenProviderTest`          |                4 | Uspešno  |
+| `UserPrincipalTest`             |               13 | Uspešno  |
+| `AccountDeletionServiceTest`    |                8 | Uspešno  |
+| `AdminServiceImplTest`          |               19 | Uspešno  |
+| `ChatRateLimiterTest`           |               12 | Uspešno  |
+| `ProviderSearchServiceImplTest` |                8 | Uspešno  |
+| `ReviewServiceImplTest`         |               12 | Uspešno  |
+| `TwoFactorServiceImplTest`      |               10 | Uspešno  |
+| `AuthServiceImplTest`           |                7 | Uspešno  |
+| `EmailServiceImplTest`          |                2 | Uspešno  |
+| `AdminControllerTest`           |               10 | Uspešno  |
+| `AuthControllerTest`            |                2 | Uspešno  |
+| `NotificationControllerTest`    |                5 | Uspešno  |
+| `ProviderControllerTest`        |                4 | Uspešno  |
+| `ReviewControllerTest`          |                5 | Uspešno  |
+| `SavedProviderControllerTest`   |                6 | Uspešno  |
 
 Vsota: 185 izvedenih primerov. Parametrizirani test IBAN prispeva dva primera.
