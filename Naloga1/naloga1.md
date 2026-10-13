@@ -16,7 +16,7 @@ Ko smo pognali frontend `npm install` ukaz, smo dobili naslednji error (vendar t
 
 ![image3.png](slike/image3.png)
 
-Če poizkusimo zdaj uporabljati aplikacijo, vidimo, da dobivamo CORS težave, saj je še en problem s privzetim portom frontenda: v zaledju je nastavljen na 3000, medtem ko React/Vite privzeto začne na 5173. Ob uskladitvi tega spletna aplikacija zdaj deluje, le da je še brez podatkov.
+Če poizkusimo zdaj uporabljati aplikacijo, vidimo, da dobivamo CORS težave, saj je še en problem s privzetim portom frontenda: v zaledju je nastavljen na 3000, medtem ko React/Vite privzeto začne na 5173. Ob uskladitvi tega s pomočjo umetne inteligence, spletna aplikacija zdaj deluje, le da je še brez podatkov.
 
 Ena težava, ki smo jo opazili, ko baza še nima podatkov, je, da je ostal statičen tekst namesto dinamičnega:
 
