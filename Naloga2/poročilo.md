@@ -182,21 +182,22 @@ Kontekst: lokalni zagon na macOS, Java 25.0.2, Maven 3.9.14 in JUnit 5. Ukaz iz 
 | Prvotna implementacija, dopolnjeni testi | Oba vhoda s črko na kontrolnem mestu sta zavrnjena | 43 uspešnih, 2 neuspešna | Odkrito odstopanje od SZ |
 | Končno stanje po obnovitvi izvorne kode | Oba vhoda s črko na kontrolnem mestu sta zavrnjena | 43 uspešnih, 2 neuspešna | Odstopanje ostaja dokumentirano |
 
-Končni izpis je v [dnevniku zagona na prvotni implementaciji](rezultati/iban-koncni-zagon.log). Navodila za zajem dokazil so v [seznamu posnetkov](rezultati/posnetki-zaslona.md).
-
 **Omejitev preverjanja celotnega projekta:**
 
-Poskus zagona vseh testov z `mvn -f backend/pom.xml test` je izvedel 251 primerov z 0 neuspešnimi preverjanji in 147 napakami izvajanja. Testi drugih enot se niso mogli pravilno izvesti zaradi napake inicializacije Mockito `MockMaker` pri pripenjanju agenta v lokalnem okolju. Zato uspeha 45 primerov validatorja ne enačimo z uspehom celotnega projekta. Izpis je shranjen v [dnevniku celotnega zagona](rezultati/vsi-testi.log).
+Poskus zagona vseh testov z `mvn -f backend/pom.xml test` je izvedel 251 primerov z 0 neuspešnimi preverjanji in 147 napakami izvajanja. Testi drugih enot se niso mogli pravilno izvesti zaradi napake inicializacije Mockito `MockMaker` pri pripenjanju agenta v lokalnem okolju. Zato uspeha 45 primerov validatorja ne enačimo z uspehom celotnega projekta.
 
 **CI in pokritost:**
 
 Obstoječi korak `Run tests` v `.github/workflows/backend.yml` izvaja `mvn test` brez `continue-on-error`, zato se vanj samodejno vključuje tudi `IbanValidatorTest`, neuspešen test pa povzroči neuspeh koraka. V tem delu nismo izvedli oddaljenega zagona GitHub Actions. Poročilo o pokritosti še ni konfigurirano; pred oddajo ga je treba dodati med rezultate cevovoda. Število uspešnih testov ne predstavlja odstotka pokritosti.
 
+
+![Rezultat zagona novih testov – 2 neuspešna testa](slike/failed_tests_ibanvalidator.png)
+
 ---
 
 ### 3. Uporaba orodij umetne inteligence (del za 2. enoto)
 
-- **Uporabljeno orodje:** OpenAI Codex. Točno oznako modela je treba prepisati iz izbire modela v aplikaciji; iz rezultatov testiranja je ne moremo potrditi.
+- **Uporabljeno orodje:** OpenAI Codex.
 - **Namen uporabe:** Pomoč pri pripravi SZ, analizi obstoječih testov, generiranju in dopolnitvi testov z JUnit 5, prilagoditvi priporočilom profesorjevih prosojnic, analizi odkrite napake, poskusnem namernem vnosu dveh napak, izvedbi testov in pripravi zapisnika ter poročila.
 - **Preverjanje kakovosti:** Pričakovanja so bila določena iz SZ pred zagonom. Pregledali smo konkretna preverjanja, robne in neveljavne vhode, neodvisnost testov ter odsotnost podvajanja algoritma v testih. Zaznavanje napak smo preverili z dvema dejanskima začasnima spremembama implementacije. Vse spremembe produkcijske kode so odstranjene. Končni zagon na prvotni implementaciji vsebuje dva neuspešna primera, ki dokumentirata odstopanje od SZ.
 
