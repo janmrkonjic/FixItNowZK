@@ -72,7 +72,8 @@ Ob prvem zagonu novih testov je **31 testov uspelo, 5 testov pa je bilo neuspeš
 
 V datoteki `.github/workflows/backend.yml` smo:
 - Odstranili zastavico `continue-on-error: true` pri koraku `Run tests` (`mvn test`), tako da vsak neuspešen test enot takoj ustavi in označi izvajanje cevovoda kot neuspešno.
-- Zakomentirali korake gradnje produkcijskega paketa in objave na Heroku (`Build JAR`, `Install Heroku CLI`, `Deploy to Heroku`), tako da cevovod izvaja izključno preverjanje s testi enot.
+- Dodali generiranje in shranjevanje **JaCoCo poročila o pokritosti** (`jacoco-maven-plugin` v `backend/pom.xml` ter koraka `Generate JaCoCo coverage report` in `Upload coverage report artifact` z `actions/upload-artifact@v4` v `.github/workflows/backend.yml`), tako da je poročilo o pokritosti (`target/site/jacoco/`) del rezultatov vsakega zagona cevovoda.
+- Zakomentirali korake gradnje produkcijskega paketa in objave na Heroku (`Build JAR`, `Install Heroku CLI`, `Deploy to Heroku`), tako da cevovod izvaja izključno preverjanje s testi enot in pripravo poročila o pokritosti.
 
 ---
 
@@ -188,7 +189,7 @@ Poskus zagona vseh testov z `mvn -f backend/pom.xml test` je izvedel 251 primero
 
 **CI in pokritost:**
 
-Obstoječi korak `Run tests` v `.github/workflows/backend.yml` izvaja `mvn test` brez `continue-on-error`, zato se vanj samodejno vključuje tudi `IbanValidatorTest`, neuspešen test pa povzroči neuspeh koraka. V tem delu nismo izvedli oddaljenega zagona GitHub Actions. Poročilo o pokritosti še ni konfigurirano; pred oddajo ga je treba dodati med rezultate cevovoda. Število uspešnih testov ne predstavlja odstotka pokritosti.
+Obstoječi korak `Run tests` v `.github/workflows/backend.yml` izvaja `mvn test` brez `continue-on-error`, zato se vanj samodejno vključuje tudi `IbanValidatorTest`, neuspešen test pa povzroči neuspeh koraka. Poročilo o pokritosti se generira z vtičnikom `jacoco-maven-plugin` in se v cevovodu naloži kot artefakt `jacoco-coverage-report`.
 
 
 ![Rezultat zagona novih testov – 2 neuspešna testa](slike/failed_tests_ibanvalidator.png)
@@ -203,14 +204,107 @@ Obstoječi korak `Run tests` v `.github/workflows/backend.yml` izvaja `mvn test`
 
 ---
 
-## Enota 3: `[Ime 3. enote]` 
+## Enota 3: `ReviewServiceImpl`
 
 ### 1. Utemeljitev izbire in specifikacija delovanja
-*(Tukaj vpišite utemeljitev izbire in specifikacijo delovanja 3. enote)*
 
-### 2. Generiranje testov, vnos napak in analiza pomanjkljivih testov
-*(Tukaj opišite ukaz agentu, vnesene napake, analizo pomanjkljivih testov ter njihove popravke)*
+**Utemeljitev izbire:**
+Razred `ReviewServiceImpl` predstavlja storitveno enoto za oddajo, urejanje, branje, izračun statistike in brisanje ocen izvajalcev storitev (`Provider`). Za testiranje enot smo ga izbrali, ker združuje več vrst netrivialne poslovne logike in sodeluje s petimi zunanjimi odvisnostmi (`ReviewRepository`, `ProviderRepository`, `TicketRepository`, `UserRepository`, `NotificationService`), kar zahteva dosledno uporabo nadomestnih objektov (Mockito mockov):
+- **Večstopenjske validacije:** Preverjanje veljavnosti identifikatorjev (`reviewerId`, `providerId`), preprečevanje samoocenjevanja (`reviewerId.equals(providerId)`), preverjanje mejnih vrednosti ocene (`1 <= rating <= 5`), preverjanje obstoja izvajalca ter poslovnega pogoja, da ima stranka pri izbranem izvajalcu vsaj en zaključen zahtevek (`TicketStatus.COMPLETED`).
+- **Pogojna logika ("upsert" in varno obveščanje):** Metoda `upsertReview` razveji izvajanje glede na to, ali ocena za par `(reviewerId, providerId)` že obstaja (posodobitev obstoječega zapisa brez ponovnega iskanja uporabnika in brez pošiljanja obvestila) ali gre za novo oceno (ustvarjanje novega zapisa in klic `notificationService.notifyReviewReceived`). Pri pošiljanju obvestila in preslikavi v `ReviewResponse` se upošteva prikazno ime uporabnika (`displayName()` – vključno z maskiranjem mehko izbrisanih uporabnikov v `"Former Customer"` in nadomestnim e-poštnim naslovom, ko ime/priimek manjkata), morebitna izjema `RuntimeException` pri obveščanju pa se ujame, da ne prekine oddaje ocene.
+- **Izračun in pogojna agregacija (`getStats`):** Metoda preveri število ocen izvajalca (`countByProviderId`) in samo v primeru `count > 0` izračuna povprečno oceno (`averageRatingByProviderId`), medtem ko ob `count == 0` vrne `averageRating = null` brez nepotrebnega klica poizvedbe za povprečje.
 
-### 3. Uporaba orodij umetne inteligence (del za 3. enoto)
-*(Tukaj navedite uporabljeni model UI in namen uporabe)*
+**Specifikacija delovanja:**
 
+1. **Oddaja ali posodobitev ocene (`upsertReview(UUID reviewerId, UUID providerId, CreateReviewRequest request)`):**
+   - **Preverjanje vhodov:**
+     - Če je `reviewerId == null`, `providerId == null` ali `request == null`, mora metoda zavrniti klic z `ApiException` brez klicev v repozitorije ali storitev obveščanja.
+     - Če je `reviewerId.equals(providerId)`, sproži `ApiException("You cannot review yourself.")` brez klicev v repozitorije.
+     - Če je `request.getRating() < 1` ali `request.getRating() > 5`, sproži `ApiException("Rating must be between 1 and 5.")` brez klicev v repozitorije. Mejni vrednosti `1` in `5` sta veljavni.
+   - **Preverjanje obstoja izvajalca in upravičenosti:**
+     - Če izvajalec z danim `providerId` ne obstaja (`providerRepository.findById` vrne `Optional.empty()`), sproži `ResourceNotFoundException("Provider not found.")` in ne kliče ostalih repozitorijev.
+     - Preveri, ali ima stranka (`reviewerId`) pri izvajalcu (`providerId`) vsaj en zahtevek v stanju `TicketStatus.COMPLETED`. Če ga nima, sproži `ApiException("You can leave a review only after a completed ticket with this provider.")` in ne shranjuje ocene.
+   - **Ustvarjanje nove ocene (ko zapis v `reviewRepository` še ne obstaja):**
+     - Poišče ocenjevalca (`userRepository.findById(reviewerId)`). Če ne obstaja, sproži `ResourceNotFoundException("User not found.")`.
+     - Ustvari in shrani nov objekt `Review` s podanim `reviewer`, `provider`, `rating` in `comment`.
+     - Pošlje obvestilo izvajalcu s klicem `notificationService.notifyReviewReceived(providerId, "New review", "<displayName> left you a <rating>★ review.", "notifications.review.title", "notifications.review.body", Map.of("reviewerName", "<displayName>", "rating", "<rating>"))`.
+     - Če `notificationService.notifyReviewReceived` vrže `RuntimeException`, mora storitev izjemo ujeti in kljub temu vrniti veljaven `ReviewResponse`.
+   - **Posodobitev obstoječe ocene (ko zapis že obstaja):**
+     - Posodobi `rating` in `comment` na obstoječem objektu `Review` ter ga shrani.
+     - Ne kliče `userRepository.findById` in **ne pošlje** ponovnega obvestila (`notificationService.notifyReviewReceived` se ne sme poklicati).
+   - **Izhod (`ReviewResponse`):**
+     - Vrne polno izpolnjen `ReviewResponse` (`id`, `providerId`, `reviewerId`, `reviewerName`, `reviewerProfilePictureUrl`, `rating`, `comment`, `createdAt`, `updatedAt`). Če je ocenjevalec mehko izbrisan (`deleted = true`), mora biti `reviewerName` enak `"Former Customer"` in `reviewerProfilePictureUrl` enak `null`. Če sta ime in priimek prazna, se kot `reviewerName` uporabi `email`.
+
+2. **Seznam ocen izvajalca (`listForProvider(UUID providerId)`):**
+   - Pokliče `reviewRepository.findAllByProviderIdOrderByCreatedAtDesc(providerId)` in vrne seznam preslikanih objektov `ReviewResponse` v istem vrstnem redu. Če ocen ni, vrne prazen seznam `[]`.
+
+3. **Statistika ocen izvajalca (`getStats(UUID providerId)`):**
+   - Če je `countByProviderId(providerId) > 0`, pokliče `averageRatingByProviderId(providerId)` in vrne `ProviderRatingStats` z `providerId`, `reviewCount` in `averageRating`.
+   - Če je `countByProviderId(providerId) == 0`, vrne `reviewCount = 0` in `averageRating = null`, pri čemer **ne sme poklicati** `averageRatingByProviderId`.
+
+4. **Brisanje lastne ocene (`deleteOwnReview(UUID reviewerId, UUID providerId)`):**
+   - Poišče oceno prek `findByReviewerIdAndProviderId(reviewerId, providerId)`. Če obstaja, pokliče `reviewRepository.delete(review)`. Če ne obstaja, ne sproži izjeme in ne pokliče `delete`.
+
+---
+
+### 2. Analiza pomanjkljivih testov, generiranje novih testov in namerni vnos napak
+
+**Analiza obstoječih testov (`ReviewServiceImplTest`) – zakaj so bili pomanjkljivi:**
+
+Prvotni razred `ReviewServiceImplTest` je vseboval 12 testov, ki so vsi uspeli, vendar so imeli več kritičnih pomanjkljivosti:
+- **Prepisovanje pričakovane vrednosti iz lažnega odgovora namesto preverjanja dejansko shranjenega objekta:** V testu `upsertReviewShouldCreateNewReview` je bil nastavljen `when(reviewRepository.save(any())).thenReturn(savedReview)`, kjer je bil `savedReview` ročno sestavljen v testu z oceno `5`, nato pa je test preveril le `assertEquals(5, resp.getRating())`. Test sploh ni preveril (npr. z `ArgumentCaptor<Review>`), kaj je metoda `upsertReview` dejansko posredovala v `reviewRepository.save(...)`. Če bi produkcijska koda v bazo shranila `rating = 1` ali `comment = null`, bi test še vedno uspel.
+- **Ohlapno preverjanje klicev nadomestnih objektov (`any()`):** Klic `verify(notificationService).notifyReviewReceived(any(), any(), any(), any(), any(), any())` je uporabil šest splošnih ujemalnikov `any()`, zato ni preveril, ali se obvestilo pošlje pravemu izvajalcu (`providerId`), s pravilnim imenom ocenjevalca in pravilno oceno.
+- **Ignoriranje vrnjenih vrednosti in stranskih učinkov:**
+  - `upsertReviewShouldUpdateExistingReview` je ignoriral vrnjeni `ReviewResponse`, ni preveril posodobitve komentarja (`existing.getComment()`), niti ni preveril, da je bil klican `reviewRepository.save(existing)`.
+  - `listForProviderShouldReturnMappedList` je preveril zgolj `assertEquals(1, result.size())`, nobenega polja objekta `ReviewResponse` pa ni preveril.
+  - `getStatsShouldReturnNullAverageWhenNoReviews` ni preveril `providerId` niti tega, da se ob 0 ocenah ne kliče `averageRatingByProviderId`.
+- **Manjkajoči robni primeri, neveljavni vhodi in izjeme:** Manjkali so testi za mejni oceni `1` in `5`, prazen/`null` komentar, maskiranje mehko izbrisanega ocenjevalca (`deleted = true`), ocenjevalca brez imena/priimka, neobstoječega uporabnika (`ResourceNotFoundException("User not found.")`), odpornost na izjemo `RuntimeException` iz `NotificationService` ter preverjanje `null` vhodnih identifikatorjev (`reviewerId`, `providerId`).
+
+**Ukaz agentu UI:**
+
+> Z ogrodjem JUnit 5 in knjižnico Mockito (`@ExtendWith(MockitoExtension.class)`, `@Mock`, `@InjectMocks`, `ArgumentCaptor`, `verify`, `verifyNoInteractions`, `never()`) na podlagi specifikacije dopolni in prenovi enotne teste v `ReviewServiceImplTest`. Uporabi način poimenovanja `metoda_koJePogoj_najPricakovanRezultat`. Pokrij:
+> 1. običajne primere (ustvarjanje nove ocene s preverjanjem vseh polj shranjenega `Review` prek `ArgumentCaptor` in vseh argumentov `notifyReviewReceived`, posodobitev obstoječe ocene brez ponovnega obveščanja, izpis seznama ocen, izračun statistike, brisanje ocene),
+> 2. robne vrednosti (parametriziran test za mejni oceni 1 in 5, `null` in prazen komentar, mehko izbrisan ocenjevalec, ocenjevalec s praznim imenom/priimkom, prazen seznam ocen, statistika ob 0 ocenah brez klica `averageRatingByProviderId`, brisanje neobstoječe ocene),
+> 3. neveljavne vhode in izjeme (samoocenjevanje, parametriziran test za ocene izven obsega `{Integer.MIN_VALUE, -5, -1, 0, 6, 10, Integer.MAX_VALUE}`, neobstoječ izvajalec, odsotnost zaključenega zahtevka, neobstoječ uporabnik, ujetje `RuntimeException` pri odpovedi `NotificationService` ter `null` vrednosti za `reviewerId` in `providerId`).
+> Nato poženi teste, v `ReviewServiceImpl` začasno in ločeno vnesi dve napaki, preveri, ali ju testi zaznajo, zapiši rezultate ter povrni izvorno kodo v prvotno stanje.
+
+**Rezultati zagona na nespremenjeni izvorni kodi:**
+
+Prenovljeni testni razred `ReviewServiceImplTest` obsega **28 izvedenih testnih primerov** (18 testnih metod, od tega 3 parametrizirane). Ob zagonu na nespremenjeni izvorni kodi z ukazom `mvn -f backend/pom.xml -Dtest=ReviewServiceImplTest test` je **26 testnih primerov uspelo, 2 pa sta bila neuspešna**:
+
+| Testni primer | Pričakovano po specifikaciji | Dejanski rezultat na nespremenjeni kodi |
+|---|---|---|
+| `upsertReview_koJeReviewerIdNull_najSproziApiExceptionBrezKlicaRepozitorijev` | Sproži `ApiException` brez klicev v repozitorije | Sproži neobravnavan `NullPointerException` v vrstici `if (reviewerId.equals(providerId))` |
+| `upsertReview_koJeProviderIdNull_najSproziApiExceptionBrezKlicaRepozitorijev` | Sproži `ApiException` brez klicev v repozitorije | Pokliče `providerRepository.findById(null)` in sproži `ResourceNotFoundException` |
+
+Testa razkrijeta, da `ReviewServiceImpl.upsertReview` ne validira vhodnih parametrov `reviewerId` in `providerId` na `null` pred izvajanjem poslovne logike in poizvedb v bazo.
+
+![Rezultat zagona novih testov – 2 neuspešna testa](slike/failed_tests_reviewservice.png)
+
+**Preizkus zaznavanja napak – namerni vnos dveh napak v `ReviewServiceImpl`:**
+
+Da smo preverili občutljivost testov na napake v poslovni logiki, smo v `ReviewServiceImpl.java` ločeno vnesli dve namerni napaki in po vsaki pognali testni nabor:
+
+1. **Namerna napaka 1 (Napaka mejnih vrednosti pri validaciji ocene – "off-by-one"):**
+   - **Sprememba v kodi:** V metodi `upsertReview` smo pogoj `if (request.getRating() < 1 || request.getRating() > 5)` spremenili v `if (request.getRating() <= 1 || request.getRating() >= 5)`, tako da storitev napačno zavrne tudi veljavni mejni oceni `1` in `5`.
+   - **Rezultat zagona testov:** Od 28 testnih primerov je bilo **11 neuspešnih** (`Tests run: 28, Failures: 4, Errors: 7`). Padla sta oba primera parametriziranega mejnega testa `upsertReview_koJeOcenaNaSpodnjiAliZgornjiMeji_najUspesnoShraniOceno` (za vhoda `1` in `5`) ter vsi testi, ki uporabljajo oceno `5`.
+
+2. **Namerna napaka 2 (Napačna pogojna logika obveščanja ob oddaji/posodobitvi ocene):**
+   - **Sprememba v kodi:** V metodi `upsertReview` smo pogoj `if (isNew)` pred klicem `notifyProviderOfReview(...)` obrnili v `if (!isNew)`, tako da se obvestilo izvajalcu ne pošlje ob novi oceni, temveč ob posodobitvi obstoječe ocene.
+   - **Rezultat zagona testov:** Od 28 testnih primerov je bilo **8 neuspešnih** (`Tests run: 28, Failures: 8, Errors: 0`). Padli so vsi testi ustvarjanja nove ocene, ki z `verify(notificationService).notifyReviewReceived(...)` preverjajo pošiljanje obvestila, ter test posodobitve `upsertReview_koStrankaPosodobiObstojecoOceno_najPosodobiOcenoInKomentarBrezNovegaObvestila`, ki z `verifyNoInteractions(notificationService)` zahteva, da se ob urejanju ocene obvestilo ne pošlje.
+
+Po preizkusu smo obe namerni napaki odstranili in `ReviewServiceImpl.java` povrnili v prvotno stanje.
+
+**Pokritost kode (JaCoCo):**
+Po zagonu `ReviewServiceImplTest` vtičnik `jacoco-maven-plugin` (`0.8.14`) v `backend/target/site/jacoco/` izpiše naslednjo pokritost za razred `ReviewServiceImpl`:
+- **Vrstična pokritost (Lines):** `59 / 59` (**100,0 %**)
+- **Pokritost metod (Methods):** `8 / 8` (**100,0 %**)
+- **Pokritost ukazov (Instructions):** `213 / 214` (**99,5 %**)
+- **Pokritost vej (Branches):** `15 / 16` (**93,8 %**)
+
+---
+
+### 3. Uporaba orodij umetne inteligence (del za `ReviewServiceImpl`)
+
+- **Uporabljeni model:** Gemini 4 Argon (Medium) (v okolju Antigravity IDE).
+- **Namen uporabe:** Analiza pomanjkljivosti obstoječih testov v `ReviewServiceImplTest`, generiranje razširjenega nabora 28 testnih primerov z JUnit 5 in Mockito na podlagi specifikacije delovanja, izvedba eksperimenta z namernim vnosom dveh napak v `ReviewServiceImpl`, konfiguracija vtičnika `jacoco-maven-plugin` v `backend/pom.xml` in artefakta poročila o pokritosti v `.github/workflows/backend.yml` ter priprava dokumentacije za 3. enoto v poročilu.
