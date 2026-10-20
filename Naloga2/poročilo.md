@@ -135,70 +135,70 @@ testiramo izolirano, brez baze podatkov in zagona aplikacije.
 
 ### 2. Generiranje testov, vnos napak in analiza pomanjkljivih testov
 
+**Izhodišče in pravila načrtovanja:**
+
+Testiranje smo zasnovali na specifikaciji zahtev (črna škatla), ne na prilagajanju pričakovanj trenutni implementaciji. Upoštevali smo napotke s prosojnic *10_ZK_Testiranje Objava 1*, predvsem strani 21–22 (vnaprej določeni pravilni rezultati, napačni vhodi in zapisnik), 25 (dopustni, nedopustni in mejni vhodi) ter 32 (lastnosti dobrega testa enote). Odkrita odstopanja dokumentiramo; izvorne kode zaradi uspeha testov ne popravljamo.
+
 **Ukaz agentu UI:**
 
-> Na podlagi zgornje specifikacije preglej in dopolni `IbanValidatorTest`. Uporabi JUnit 5 in parametrizirane teste za sorodne primere. Pokrij običajne primere, robne vrednosti, neveljavne vhode in preveri, da neveljavni vhodi ne sprožijo izjem. Teste poimenuj po konvenciji `metoda_koJePogoj_najPricakovanRezultat`. Mockov ne uporabljaj, saj razred nima zunanjih odvisnosti. Vsak test mora vsebovati smiselno preverjanje; pričakovanih vrednosti ne pridobivaj iz implementacije in v testih ne podvajaj algoritma MOD-97. Odstrani podvojene teste in preveri pravilnost obstoječih testnih podatkov. Poženi teste ter poročaj o rezultatih in morebitnih odstopanjih implementacije od SZ.
+> Na podlagi specifikacije dopolni `IbanValidatorTest` z JUnit 5. Za sorodne primere uporabi parametrizirane teste. Pokrij običajne primere, robne dolžine, neveljavne vhode in zahtevo, da neveljavni vhodi ne sprožijo izjem. Uporabi poimenovanje `metoda_koJePogoj_najPricakovanRezultat`. Vsak test naj preverja eno jasno vedenje in ima razvidno pripravo vhoda, izvedbo ter preverjanje rezultata. Pričakovane rezultate določi vnaprej iz SZ; ne izračunavaj jih s testirano metodo in ne podvajaj algoritma MOD-97. Ne uporabljaj mockov, ker razred nima zunanjih odvisnosti. Testi naj bodo izolirani, deterministični in samodejni. Preglej obstoječe teste ter poročaj o rezultatih. Nato ločeno začasno vnesi dve napaki, po vsaki poženi teste in zapiši rezultate. Obe napaki odstrani in ponovi teste.
 
-**Analiza obstoječih testov – zakaj so pomanjkljivi:**
+**Analiza pomanjkljivih testov in popravki:**
 
-Obstoječi razred `IbanValidatorTest` je vseboval **15 testnih primerov**, ki so ob začetnem zagonu vsi uspeli. Preverjali so osnovne veljavne in neveljavne vhode, vendar niso pokrivali vseh zahtev specifikacije:
+Obstoječih **15 testnih primerov** je ob začetnem zagonu uspelo. Vsebovali so konkretna preverjanja, vendar niso pokrivali celotne SZ:
 
-- **Nepopolno preverjanje normalizacije:** Manjkali so primeri s tabulatorji, prelomi vrstic in samimi belimi znaki ter preverjanje, da normalizacija ohrani druge znake.
-- **Nepreverjena neodvisnost od lokalizacije:** Testi niso preverjali pretvorbe malih črk v velike pri turški privzeti lokalizaciji.
-- **Nepopolne robne vrednosti:** Preverjen je bil prekratek nemški IBAN, manjkali pa so primeri za en znak prekratkih in predolgih IBAN-ov za Slovenijo, Nemčijo in Veliko Britanijo.
-- **Manjkajoče preverjanje kontrolnih števk:** Testi niso preverjali, ali sta tretji in četrti znak res števki, tudi kadar vhod sicer prestane preverjanje MOD-97.
-- **Ponavljanje sorodnih scenarijev:** Podobni primeri so bili zapisani v ločenih testnih metodah, zato so bili združeni v parametrizirane teste.
+- **Normalizacija:** Manjkali so tabulatorji, prelomi vrstic, sami beli znaki in ohranjanje drugih znakov. Dodali smo primere z vnaprej določenimi pričakovanimi nizi.
+- **Lokalizacija:** Dodali smo primer s turško privzeto lokalizacijo. Prvotna nastavitev se obnovi v bloku `finally`, test pa uporablja `@ResourceLock` za usklajevanje dostopa do nastavitve.
+- **Mejne dolžine:** Dodali smo za en znak prekratke in predolge IBAN-e za SI, DE in GB ter veljavne primere pravilnih dolžin.
+- **Neveljavni vhodi:** Razširili smo preverjanje oznak držav, nedovoljenih znakov in napačnih kontrolnih vsot.
+- **Kontrolni števki:** Dodali smo dva fiksna vhoda s črko na tretjem oziroma četrtem mestu, ki sicer prestaneta MOD-97. Tako zavrnitve ne povzroči že napačna kontrolna vsota.
+- **Preglednost:** Sorodne scenarije smo združili v parametrizirane teste. Pri klicih so rezultat in preverjanja zapisani izrecno z lokalno spremenljivko `actual`; pri primerjavah nizov je pričakovana vrednost podana vnaprej. Odstranili smo pomožno metodo, ki je skrivala klic in preverjanje neveljavnih vhodov.
 
-**Dopolnitve in popravki testov:**
+Testi ne dostopajo do zasebnih članov, ne zaganjajo Spring konteksta in ne uporabljajo baze, omrežja ali datotek. Mocki niso potrebni. Vsak parametriziran primer preverja konkretni rezultat. Pri neveljavnih vhodih `assertDoesNotThrow` in `assertFalse` skupaj preverjata pogodbo zavrnitve brez izjeme. Anotacij `@BeforeEach` in `@AfterEach` ne dodajamo brez potrebe, ker validator nima stanja za inicializacijo oziroma čiščenje.
 
-Na podlagi specifikacije smo z uporabo ogrodja **JUnit 5** dopolnili razred `IbanValidatorTest`. Sorodni primeri uporabljajo `@ParameterizedTest`, `@ValueSource`, `@CsvSource` in `@NullAndEmptySource`. Testi so poimenovani po konvenciji `metoda_koJePogoj_najPricakovanRezultat`.
+**Rezultati na nespremenjeni izvorni kodi:**
 
-Dopolnjeni testi preverjajo:
+Izvedenih je bilo **45 testnih primerov: 43 uspešnih in 2 neuspešna**, brez napak izvajanja in preskočenih primerov. Oba neuspešna primera pripadata testu `isValid_koKontrolniMestiVsebujetaCrko_najVrneFalseBrezIzjeme`:
 
-- normalizacijo vhodov, vključno z belimi znaki in ohranjanjem drugih znakov;
-- neodvisnost pretvorbe črk od privzete lokalizacije;
-- veljavne slovenske, nemške in britanske IBAN-e;
-- prazne vhode, `null` in zelo kratke nize;
-- dolžine za en znak pod in nad zahtevano dolžino;
-- nepodprte oziroma napačno oblikovane oznake držav;
-- nedovoljene znake;
-- napačno kontrolno vsoto;
-- črke na mestih, kjer morata biti kontrolni števki.
-
-Pri neveljavnih vhodih kombinacija `assertDoesNotThrow` in `assertFalse` preverja, da metoda vrne `false` brez izjeme. Test lokalizacije po izvedbi obnovi prvotno nastavitev.
-
-**Mocki niso uporabljeni**, ker razred nima zunanjih odvisnosti. Pričakovani rezultati so določeni vnaprej, testi pa ne podvajajo algoritma MOD-97. Obstoječi slovenski primer `SI56191000000123438` je bil preverjen in ohranjen kot veljaven testni podatek.
-
-**Rezultati zagona:**
-
-Teste smo pognali z ukazom `mvn -Dtest=IbanValidatorTest test` v imeniku `backend`.
-
-Izvedenih je bilo **45 testnih primerov: 43 uspešnih in 2 neuspešna**, brez napak izvajanja in preskočenih testov.
-
-Oba neuspešna primera pripadata testu `isValid_koKontrolniMestiVsebujetaCrko_najVrneFalseBrezIzjeme`:
-
-| Vhod | Pričakovani rezultat | Dejanski rezultat |
+| Vhod | Vnaprej pričakovani rezultat po SZ | Dejanski rezultat |
 |---|---|---|
 | `DEA9370400440532013051` | `false` | `true` |
 | `DE8A370400440532013089` | `false` | `true` |
 
-Oba vhoda imata pravilno dolžino za Nemčijo in prestaneta preverjanje MOD-97, vendar vsebujeta črko na mestu kontrolne števke. Testi so odkrili, da obstoječa implementacija metode `isValid` **ne preverja izrecno, ali sta tretji in četrti znak števki**.
+Vhoda imata ustrezno dolžino in prestaneta MOD-97, vendar vsebujeta črko na kontrolnem mestu. Implementacija ne preverja izrecno, ali sta tretji in četrti znak števki. Testa ostajata neuspešna, saj pravilno zaznata odstopanje od SZ. Pričakovanj ne prilagajamo implementaciji in izvorne kode ne popravljamo zaradi uspeha testov.
 
-Pričakovanja testov so ostala skladna s specifikacijo. Produkcijska koda v tem koraku ni bila spremenjena, zato neuspešna testa ostajata dokaz odkrite napake.
+Agent je v predhodnem koraku neupravičeno dodal preverjanje kontrolnih števk v produkcijsko kodo. Ta popravek je bil odstranjen in `IbanValidator.java` je obnovljen v prvotno stanje. Predhodni uspešni zagon 45/45 zato ni rezultat testiranja končne, nespremenjene implementacije.
 
 **Stanje namernega vnosa napak:**
 
-Namerni vnos najmanj dveh napak v izbrano enoto še ni bil izveden. Dva neuspešna testna primera razkrivata isto obstoječo pomanjkljivost in ne predstavljata dveh namerno vnesenih napak. Ta del naloge je treba še izvesti in dopolniti z rezultati zagona.
+V predhodnem poskusu sta bili ločeno preizkušeni odstranitev `.toUpperCase(Locale.ROOT)` in sprememba pogoja MOD-97 iz `== 1` v `== 0`. Vsaka je povzročila 7 neuspešnih primerov, vendar sta bila poskusa opravljena na začasno popravljeni osnovi. Dnevnika `iban-napaka-1.log` in `iban-napaka-2.log` sta zgodovinska izpisa tega poskusa in ne predstavljata rezultatov na prvotni osnovi. Za dokazovanje dveh namernih napak na prvotni osnovi je treba ta korak ponoviti kot ločen eksperiment. V trenutni izvorni kodi ni nobene od teh sprememb.
+
+**Zapisnik testiranja:**
+
+Kontekst: lokalni zagon na macOS, Java 25.0.2, Maven 3.9.14 in JUnit 5. Ukaz iz korena projekta: `mvn -f backend/pom.xml -Dtest=IbanValidatorTest test`. Število 45 pomeni izvedene primere, vključno s posameznimi vhodi parametriziranih testov.
+
+| Stanje enote | Pričakovano po SZ | Dobljeni rezultat | Sklep |
+|---|---|---|---|
+| Prvotna implementacija, dopolnjeni testi | Oba vhoda s črko na kontrolnem mestu sta zavrnjena | 43 uspešnih, 2 neuspešna | Odkrito odstopanje od SZ |
+| Končno stanje po obnovitvi izvorne kode | Oba vhoda s črko na kontrolnem mestu sta zavrnjena | 43 uspešnih, 2 neuspešna | Odstopanje ostaja dokumentirano |
+
+Končni izpis je v [dnevniku zagona na prvotni implementaciji](rezultati/iban-koncni-zagon.log). Navodila za zajem dokazil so v [seznamu posnetkov](rezultati/posnetki-zaslona.md).
+
+**Omejitev preverjanja celotnega projekta:**
+
+Poskus zagona vseh testov z `mvn -f backend/pom.xml test` je izvedel 251 primerov z 0 neuspešnimi preverjanji in 147 napakami izvajanja. Testi drugih enot se niso mogli pravilno izvesti zaradi napake inicializacije Mockito `MockMaker` pri pripenjanju agenta v lokalnem okolju. Zato uspeha 45 primerov validatorja ne enačimo z uspehom celotnega projekta. Izpis je shranjen v [dnevniku celotnega zagona](rezultati/vsi-testi.log).
+
+**CI in pokritost:**
+
+Obstoječi korak `Run tests` v `.github/workflows/backend.yml` izvaja `mvn test` brez `continue-on-error`, zato se vanj samodejno vključuje tudi `IbanValidatorTest`, neuspešen test pa povzroči neuspeh koraka. V tem delu nismo izvedli oddaljenega zagona GitHub Actions. Poročilo o pokritosti še ni konfigurirano; pred oddajo ga je treba dodati med rezultate cevovoda. Število uspešnih testov ne predstavlja odstotka pokritosti.
 
 ---
 
 ### 3. Uporaba orodij umetne inteligence (del za 2. enoto)
 
-- **Uporabljeno orodje in model:** OpenAI Codex.
-- **Namen uporabe:** Pomoč pri pripravi specifikacije delovanja razreda `IbanValidator`, analizi pomanjkljivosti obstoječih testov, generiranju in dopolnitvi testov enot z ogrodjem JUnit 5, zagonu testov ter razlagi rezultatov in pripravi tega dela poročila.
-- **Preverjanje kakovosti ustvarjenih testov:** Testi so bili pregledani glede skladnosti s specifikacijo, smiselnosti preverjanj, podvajanja in pravilnosti testnih podatkov. Pričakovani rezultati niso bili prilagojeni trenutnemu obnašanju implementacije. Neuspešna testa sta razkrila manjkajoče preverjanje kontrolnih števk.
-
----
+- **Uporabljeno orodje:** OpenAI Codex. Točno oznako modela je treba prepisati iz izbire modela v aplikaciji; iz rezultatov testiranja je ne moremo potrditi.
+- **Namen uporabe:** Pomoč pri pripravi SZ, analizi obstoječih testov, generiranju in dopolnitvi testov z JUnit 5, prilagoditvi priporočilom profesorjevih prosojnic, analizi odkrite napake, poskusnem namernem vnosu dveh napak, izvedbi testov in pripravi zapisnika ter poročila.
+- **Preverjanje kakovosti:** Pričakovanja so bila določena iz SZ pred zagonom. Pregledali smo konkretna preverjanja, robne in neveljavne vhode, neodvisnost testov ter odsotnost podvajanja algoritma v testih. Zaznavanje napak smo preverili z dvema dejanskima začasnima spremembama implementacije. Vse spremembe produkcijske kode so odstranjene. Končni zagon na prvotni implementaciji vsebuje dva neuspešna primera, ki dokumentirata odstopanje od SZ.
 
 ---
 
