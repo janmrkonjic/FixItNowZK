@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -27,33 +28,41 @@ public class NotificationController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<NotificationResponse>> list(@AuthenticationPrincipal UserPrincipal userDetails) {
-        return ResponseEntity.ok(notificationService.getNotifications(userDetails.getUser().getId()));
+        return ResponseEntity.ok(notificationService.getNotifications(requireUserId(userDetails)));
     }
 
     @GetMapping("/unread-count")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Long>> unreadCount(@AuthenticationPrincipal UserPrincipal userDetails) {
-        return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(userDetails.getUser().getId())));
+        return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(requireUserId(userDetails))));
     }
 
     @PutMapping("/{id}/read")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Boolean>> markRead(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal userDetails) {
-        notificationService.markAsRead(id, userDetails.getUser().getId());
+        notificationService.markAsRead(id, requireUserId(userDetails));
         return ResponseEntity.ok(Map.of("success", true));
     }
 
     @PutMapping("/read-all")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Boolean>> markAllRead(@AuthenticationPrincipal UserPrincipal userDetails) {
-        notificationService.markAllAsRead(userDetails.getUser().getId());
+        notificationService.markAllAsRead(requireUserId(userDetails));
         return ResponseEntity.ok(Map.of("success", true));
     }
 
     @DeleteMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Boolean>> deleteAll(@AuthenticationPrincipal UserPrincipal userDetails) {
-        notificationService.deleteAll(userDetails.getUser().getId());
+        notificationService.deleteAll(requireUserId(userDetails));
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    private UUID requireUserId(UserPrincipal userDetails) {
+        UUID userId = userDetails.getUser().getId();
+        if (userId == null) {
+            throw new IllegalArgumentException("Authenticated user ID must not be null");
+        }
+        return userId;
     }
 }
