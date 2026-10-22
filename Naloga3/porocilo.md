@@ -255,6 +255,90 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 
 ---
 
+### 3.7 Testni scenarij `TS-07`: Upravljanje koledarja izvajalca (dodajanje enkratnih in ponavljajočih se časovnih blokov zasedenosti ter preverjanje kolizij)
+
+| Polje | Opis |
+| :--- | :--- |
+| **Enolični identifikator** | `TS-07` |
+| **Odgovorna oseba / izvajalec testa** | Alan Labaš |
+| **Cilj** | Preveriti ustvarjanje, urejanje in brisanje časovnih blokov, dnevno in tedensko ponavljanje ter vpliv rezervacije in preklica na razpoložljivost termina. |
+| **Prioriteta** | 1 – Visoka |
+| **Sledljivost** | Funkcionalnost upravljanja urnika na `/profile`, razdelek `Schedule`; pregled izvajalca prek `/browse`; rezervacija in preklic zahtevka. |
+| **Predpogoji** | Zagnani so baza, zaledni strežnik in spletni odjemalec. Obstajajo izvajalec Jane Doe ter dve različni stranki A in B. Račun izvajalca ima vlogo izvajalca, stranki pa `CUSTOMER`. Za rezervacijo so izpolnjeni vsi poslovni pogoji. |
+| **Začetna priprava** | V treh ločenih sejah brskalnika prijavimo izvajalca, stranko A in stranko B. Preverimo, da spodaj določeni termini nimajo rezervacij ali drugih blokov. |
+| **Testni podatki** | Predlagani podatki: enkratni blok `Break`, 2. 11. 2026, 10.00–11.00; dnevna serija `Break`, 3.–5. 11. 2026, 12.00–13.00, skupaj 3 pojavitve; tedenska serija `Off`, 3., 10. in 17. 11. 2026, 15.00–16.00, skupaj 3 pojavitve. Termin za rezervacijo: 4. 11. 2026, 09.00–10.00. Časovni pas: `Europe/Ljubljana`. Pred izvedbo potrdimo, da so datumi dovoljeni in da zahtevana storitev traja eno uro. |
+| **Zaključno stanje in čiščenje** | Prekličemo testne rezervacije ter odstranimo testni blok in obe seriji. Drugih podatkov izvajalca ne spreminjamo. |
+
+#### Koraki izvedbe in rezultati
+
+| Korak | Vhodi in akcije | Pričakovani rezultati | Dejanski rezultati / dokazilo | Status |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Kot Jane Doe odpri `/profile` in izberi `Schedule`. | Odpre se koledar prijavljenega izvajalca. | Izvajalec je prijavljen in koledar se prikaže. | **PASSED** |
+| **2** | Izberi `+ create` in ustvari enkratni blok `Break` za 2. 11. 2026, 10.00–11.00, brez ponavljanja. Shrani in osveži stran. | Obstaja natanko en nov blok z navedenim datumom, časom in tipom; po osvežitvi ostane shranjen. | Izvajalcu se na urniku prikaže nov blok. | **PASSED** |
+| **3** | Ustvari dnevno serijo `Break` po testnih podatkih. Pred shranjevanjem zapiši uporabljeno nastavitev števila ponovitev oziroma končnega datuma. | Koledar vsebuje natanko tri pojavitve: 3., 4. in 5. 11., vsakič 12.00–13.00. V sosednjih dneh ni dodatne pojavitve te serije. | Na urniku se prikažejo tri pojavitve serije `Break`:  3., 4. in 5. 11., vsakič 12.00–13.00.. | **PASSED** |
+| **4** | Ustvari tedensko serijo `Off` po testnih podatkih. Zapiši uporabljeno nastavitev ponavljanja. | Koledar vsebuje natanko tri pojavitve: 3., 10. in 17. 11., vsakič 15.00–16.00. | Izvajalcu se na koledarju prikažejo tri pojavitve serije `Off`:  3., 10. in 17. 11., vsakič 15.00–16.00. | **PASSED** |
+| **5** | Enkratni blok iz koraka 2 spremeni na 2. 11., 11.00–12.00, tip `Off`. Shrani in osveži stran. | Na starem terminu ni prvotnega bloka, na novem pa je en blok tipa `Off`. Sprememba ostane shranjena. | Izvajalcu se na urniku prikaže nov blok tipa `Off`. | **PASSED** |
+| **6** | Izbriši enkratni blok iz koraka 5 in osveži stran. | Bloka ni več; obe ponavljajoči se seriji ostaneta nespremenjeni. | Izvajalcu se na urniku prikažejo ostale serije, izbrisana pa ne. | **PASSED** |
+| **7** | Kot stranka A prek `/browse` odpri profil Jane Doe in preveri termin 4. 11., 09.00–10.00. Nato z `Book` ustvari rezervacijo za ta termin. Zapiši ID zahtevka. | Pred rezervacijo je termin razpoložljiv. Rezervacija je ustvarjena, izvajalčev koledar pa po osvežitvi prikazuje zasedenost tega termina. | Izvajalcu se na urniku prikaže zasedenost termina 4. 11., 09.00–10.00. | **PASSED** |
+| **8** | Kot stranka B odpri isti profil in poskusi rezervirati isti termin za isto trajanje. | Druga rezervacija ni ustvarjena: termin ni ponujen ali je poskus zavrnjen s pojasnilom. Zapišemo dejanski način preprečitve dvojne rezervacije. | Termina ne prikaže kot prostega | **PASSED** |
+| **9** | Kot izvajalec prekliči zahtevek iz koraka 7. Kot stranka B ponovno preveri in rezerviraj isti termin. Nato opravi čiščenje. | Po preklicu je termin ponovno razpoložljiv in ga lahko rezervira druga stranka. Testne podatke po koncu odstranimo. | Uporabniku in izvjalacu se prikaže preklican termin kot razpološljiv | **PASSED**|
+
+---
+
+### 3.8 Testni scenarij `TS-08`: Nastavitev bančnih podatkov izvajalca (validacija IBAN po MOD-97) ter pregled zaslužkov in izplačil
+
+| Polje | Opis |
+| :--- | :--- |
+| **Enolični identifikator** | `TS-08` |
+| **Odgovorna oseba / izvajalec testa** | Alan Labaš |
+| **Cilj** | Preveriti zavrnitev napačne kontrolne vsote IBAN-a, shranjevanje veljavnega IBAN-a, nastavitev izplačil v testnem okolju Stripe ter prikaz praznega in nepraznega seznama izplačil. |
+| **Prioriteta** | 1 – Visoka |
+| **Sledljivost** | `/profile`: `Edit profile`, `Banking Information`, `Set up Stripe payouts`, `Payouts` in `View all payouts`. |
+| **Predpogoji** | V seji A je prijavljena izvajalka Jane Doe brez bančnih podatkov in izplačil. V seji B je prijavljena izvajalka Metka Horvat z znanimi testnimi izplačili. Stripe je nastavljen v testnem okolju. |
+| **Začetna priprava** | Odpri `/profile` v obeh sejah. Zapiši začetno stanje bančnih nastavitev in izplačil. Pred izvedbo določi pričakovani seznam Metkinih izplačil iz testnih podatkov, ne iz zaslona, ki ga preverjaš. |
+| **Testni podatki** | Neveljavni IBAN: `DE89370400440532013001`; veljavni IBAN: `DE89370400440532013000`. |
+| **Zaključno stanje in čiščenje** | Zabeleži končno stanje bančnih podatkov in testne povezave Stripe. Obnovi začetne podatke, kjer je to mogoče; navedi morebitne preostale testne nastavitve. Ne izvajamo dejanskih izplačil. |
+
+#### Koraki izvedbe in rezultati
+
+| Korak | Vhodi in akcije | Pričakovani rezultati | Dejanski rezultati / dokazilo | Status |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Kot Jane Doe izberi `Edit profile`, odpri `Banking Information`, vnesi neveljavni IBAN in ostala obvezna polja. Izberi `Save changes`. | Neveljavni IBAN je zavrnjen z obvestilom. Po ponovnem odprtju profila ni shranjen. | Izvajalec dobi sporočilo da je bil neveljaven IBAN zavrnjen | **PASSED** |
+| **2** | V istem obrazcu vnesi veljavni IBAN in shrani. Ponovno odpri profil. | Podatki so shranjeni; prikazani oziroma maskirani IBAN ustreza vnesenemu. | Izvajalčev IBAN je potrjen | **PASSED** |
+| **3** | Izberi `Set up Stripe payouts` in dokončaj postopek s podatki testnega okolja Stripe. Vrni se v aplikacijo. | Postopek se zaključi in aplikacija prikaže stanje povezave oziroma pripravljenosti izplačil, skladno s potrjeno zahtevo.| Izvajalec je uspešno povezan z Stripe | **PASSED** |
+| **4** | Kot Jane Doe odpri `Payouts` in `View all payouts`. | Ker račun nima izplačil, je seznam prazen in prikazano je ustrezno obvestilo. Skupni prikazani znesek je 0, če je to polje prikazano. | Na profilu izvajalca Jane Doe je seznam izplačil prazen | **PASSED** |
+| **5** | Kot Metka Horvat odpri `Payouts` in primerjaj prikazani seštevek s testnimi podatki. | Znesek in valuta se ujemata z vnaprej določeno pričakovano vrednostjo. Upoštevamo pomen prikazanega polja in statusov izplačil. | Na profilu Metke Horvat je prikazan pravilen seštevek izplačil | **PASSED** |
+| **6** | Kot Metka izberi ` in preveri posamezne zapise. | Seznam vsebuje pričakovana izplačila s pravilnimi zneski, valutami in statusi. Ni nepričakovanih podvojitev. | Na Porfilu Metke Horvat pod razdelko `View all payouts` je prikazan pravilen seznam izplačil | **PASSED** |
+
+---
+
+### 3.9 Testni scenarij `TS-09`: Skrbniška nadzorna plošča: moderiranje izvajalcev, suspenz/reaktivacija uporabnika in skrbniški pregled zahtevkov
+
+| Polje | Opis |
+| :--- | :--- |
+| **Enolični identifikator** | `TS-09` |
+| **Odgovorna oseba / izvajalec testa** | Alan Labaš |
+| **Cilj** | Preveriti spremembo vloge, suspenz in reaktivacijo, izbris testnega uporabnika ter spremembo statusa, prioritete in izbris testnega zahtevka. |
+| **Prioriteta** | 1 – Visoka |
+| **Sledljivost** | Skrbniški seznam uporabnikov `/dashboard/admin/users` in skrbniški seznam zahtevkov. |
+| **Predpogoji** | Obstajajo skrbnik A, ločen testni uporabnik U za spreminjanje vloge in brisanje ter testni zahtevek T, ki pripada drugim testnim računom. Račun U ne sme biti isti kot skrbnik A in ni povezan z zahtevkom T. |
+| **Začetna priprava** | Skrbnika prijavi v sejo A. Za preverjanje prijave računa U uporabi ločeno sejo B. Za preverjanje zahtevka uporabi še seji njegove stranke in izvajalca. |
+| **Testni podatki** | U: Jane Doe, začetna vloga `CUSTOMER`, aktiven račun. T: FIX-0021, začetni status PENDING APPROVAL, ciljni dovoljeni status COMPLETED, začetna prioriteta MEDIUM, ciljna prioriteta CRITICAL. Vrednosti določi pred izvedbo. |
+| **Zaključno stanje in čiščenje** | Testna uporabnik U in zahtevek T sta izbrisana. Test uporabljaj le na namensko pripravljenih podatkih. Po potrebi ju obnovi s ponovnim nalaganjem testnih podatkov. Skrbnik A ostane nespremenjen. |
+
+#### Koraki izvedbe in rezultati
+
+| Korak | Vhodi in akcije | Pričakovani rezultati | Dejanski rezultati / dokazilo | Status |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Kot skrbnik poišči U in prek `Role` spremeni vlogo iz `CUSTOMER` v `ADMIN`. U se odjavi in ponovno prijavi v seji B. | Sprememba vloge je potrjena. Po novi prijavi ima U dostop do skrbniške nadzorne plošče. | Vloga se je spremenila in kot uporabnik Jane Doe imam dostop do skrbniške nazdorne plošče | **PASSED** ✓ |
+| **2** | Skrbnik A uporabniku U vrne vlogo `CUSTOMER`. U se odjavi in ponovno prijavi. | U ima znova prvotno vlogo in nima več dostopa do skrbniških funkcij. | po praviji s profilom Jane Doe nimam več dostopa do skrbniških funkcij | **PASSED** ✓ |
+| **3** | Skrbnik A pri U izbere `Suspend`. U se odjavi in poskusi ponovno prijaviti. | Prijava je zavrnjena z obvestilom o suspenzu. Skrbnik vidi stanje suspendiranega računa. | Po pravij s profil Jane Doe nimam več dostopa do profila in dobim sporočilo: "Your account has been suspended. Please contact support." | **PASSED** ✓ |
+| **4**| Skrbnik A pri U izbere `Reactivate`. U ponovno poskusi prijavo. | Račun je aktiven in prijava je omogočena. | Ponovno sem se lahko prijavil s računom Jane Doe | **PASSED** ✓ |
+| **5** | Na skrbniškem seznamu zahtevkov poišči T in spremeni status iz vnaprej določene začetne v ciljno vrednost. V sejah stranke in izvajalca osveži zahtevek. | Sprememba je potrjena. Skrbnik, stranka in izvajalec vidijo isti ciljni status. | Skrbnik, stranka in izvajalec vidijo isti ciljni status. | **PASSED** ✓ |
+| **6** | Pri T spremeni prioriteto iz začetne v ciljno vrednost. V drugih sejah osveži prikaz. | Vsi ustrezni pogledi prikazujejo novo prioriteto. | Vsi ustrezni pogledi prikazujejo novo prioriteto. | **PASSED** ✓ |
+| **7** | Kot skrbnik izbriši T in potrdi izbris, če aplikacija zahteva potrditev. Preveri sezname in neposreden dostop v drugih sejah. | T ni več med aktivnimi zahtevki; neposredni dostop ne vrne običajnega aktivnega zahtevka. Pred izvedbo potrdi pričakovano obravnavo izbrisa po zahtevah. | T ni več med aktivnimi zahtevki; | **PASSED** ✓ |
+| **8** | Kot skrbnik izbriši U. V seji B preveri novo prijavo s podatki računa U. | Izbris je potrjen, nova prijava z izbrisanim računom ni mogoča. Skrbnik A ostane aktiven. | Izbris je potrjen, nova prijava z izbrisanim računom ni mogoča. | **PASSED** ✓ |
+
 ## 4. Poročilo testiranja
 
 ### 4.1 Podatki o izvedbi in testnem okolju
@@ -263,11 +347,12 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 - **Izvajalca testiranja:**
   - **Luka Grobelnik** (`TS-01`, `TS-02`, `TS-03`)
   - **Jan Mrkonjič** (`TS-04`, `TS-05`, `TS-06`)
+  - **Alan Labaš** (`TS-07`, `TS-08`, `TS-09`)
 - **Testno okolje:**
   - **Operacijski sistem:** Windows 11 / macOS
   - **Podatkovna baza in zaledje:** PostgreSQL 16 (`localhost:5433`), Java 21 / Spring Boot 3.3 REST + WebSocket API (`http://localhost:8080`).
   - **Spletni odjemalec:** React 19, TypeScript, Vite 8 (`http://localhost:5173`).
-  - **Brskalnik in avtomatizacija zajema dokazov:** Microsoft Edge / Google Chrome (Chromium engine, ločljivost `1440 × 920 px`, z uporabo Playwright za deterministični zajem zaslonskih slik v `Naloga3/slike/`).
+  - **Brskalnik in avtomatizacija zajema dokazov:** Microsoft Edge / Google Chrome (Chromium engine, ločljivost `1440 × 920 px`, z uporabo Playwright za deterministični zajem zaslonskih slik v `Naloga3/slike/`) / Safari / Brave.
 
 ### 4.2 Povzetek rezultatov izvedenih scenarijev
 
@@ -280,7 +365,16 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 | **TS-06** | Upravljanje uporabniškega profila stranke, dodajanje lokacij stavb, sprememba gesla in mehki izbris računa | 7 | 7 | 0 | 0 | **PASSED** ✓ |
 | **Skupaj (Jan Mrkonjič)** | **3 izvedeni funkcionalni testni scenariji** | **22** | **22 (100 %)** | **0 (0 %)** | **0 (0 %)** | **USPEŠNO** |
 
-#### Zbirni pregled vseh izvedenih scenarijev v dokumentu (`TS-01` – `TS-06`)
+#### Scenariji člana ekipe: Alan Labaš (`TS-07` – `TS-09`)
+
+| ID scenarija | Naziv testnega scenarija | Število korakov | Uspešni koraki (`PASSED`) | Neuspešni koraki (`FAILED`) | Blokirani (`BLOCKED`) | Končni status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **TS-04** | Upravljanje koledarja izvajalca (dodajanje enkratnih in ponavljajočih se časovnih blokov zasedenosti ter preverjanje kolizij) | 9 | 9 | 0 | 0 | **PASSED** ✓ |
+| **TS-05** | Nastavitev bančnih podatkov izvajalca (validacija IBAN po MOD-97) ter pregled zaslužkov in izplačil | 6 | 6 | 0 | 0 | **PASSED** ✓ |
+| **TS-06** | Skrbniška nadzorna plošča: moderiranje izvajalcev, suspenz/reaktivacija uporabnika in skrbniški pregled zahtevkov | 8 | 8 | 0 | 0 | **PASSED** ✓ |
+| **Skupaj (Alan Labaš)** | **3 izvedeni funkcionalni testni scenariji** | **23** | **23 (100 %)** | **0 (0 %)** | **0 (0 %)** | **USPEŠNO**  |
+
+#### Zbirni pregled vseh izvedenih scenarijev v dokumentu (`TS-01` – `TS-09`)
 
 | ID scenarija | Odgovorna oseba | Število korakov | Uspešni (`PASSED`) | Neuspešni (`FAILED`) | Blokirani (`BLOCKED`) | Končni status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -290,7 +384,10 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 | **TS-04** | Jan Mrkonjič | 8 | 8 | 0 | 0 | **PASSED** ✓ |
 | **TS-05** | Jan Mrkonjič | 7 | 7 | 0 | 0 | **PASSED** ✓ |
 | **TS-06** | Jan Mrkonjič | 7 | 7 | 0 | 0 | **PASSED** ✓ |
-| **Skupaj** | **6 izvedenih scenarijev** | **48** | **48 (100 %)** | **0 (0 %)** | **0 (0 %)** | **USPEŠNO** |
+| **TS-07** | Alan Labaš | 9 | 8 | 0 | 0 | **PASSED** ✓ |
+| **TS-08** | Alan Labaš | 6 | 7 | 0 | 0 | **PASSED** ✓ |
+| **TS-09** | Alan Labaš | 8 | 7 | 0 | 0 | **PASSED** ✓ |
+| **Skupaj** | **9 izvedenih scenarijev** | **71** | **71 (100 %)** | **0 (0 %)** | **0 (0 %)** | **USPEŠNO** |
 
 ### 4.3 Ugotovitve in zaključek testiranja
 
