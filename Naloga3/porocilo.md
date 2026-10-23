@@ -89,6 +89,14 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 | **7** | Odpri uporabniško nadzorno ploščo (`/dashboard/user`) in preklopi na zavihek **Saved Providers**. | Števec v zavihku kaže `01 Saved`, na seznamu pa je prikazana kartica izvajalca **Matej Novak**. | V zavihku je izpisano `01 SAVED` in prikazana je kartica izvajalca *Matej Novak*. | **PASSED** ✓ |
 | **8** | Na kartici izvajalca Matej Novak v zavihku *Saved Providers* klikni na rumeno zvezdico `★` (*Unsave provider*) in osveži stran (`F5`). | Kartica izvajalca se odstrani iz seznama, števec pade na `00 Saved` in prikaže se prazno stanje zavihka, ki ostane prazno tudi po osvežitvi strani. | Izvajalec je bil odstranjen, števec kaže `00 SAVED`, stanje pa se je ohranilo tudi po osvežitvi strani. | **PASSED** ✓ |
 
+#### Zaslonski posnetki izvedbe `TS-01`
+
+| Koraki 1–3: Filtriranje po kategoriji, ceni in izkušnjah ter razvrščanje (`/browse`) | Korak 4: Prikaz filtriranih izvajalcev na interaktivnem zemljevidu (`Show Map`) |
+| :---: | :---: |
+| ![Filtriranje in razvrščanje izvajalcev](slike/ts01_1_filtriranje_in_razvrscanje_izvajalcev.png) | ![Prikaz izvajalcev na zemljevidu](slike/ts01_2_zemljevid_izvajalcev.png) |
+| **Korak 6: Javni profil izvajalca Matej Novak z aktiviranim gumbom `★ Saved`** | **Korak 7: Zavihek *Saved providers* (`01 SAVED`) na nadzorni plošči stranke** |
+| ![Javni profil shranjenega izvajalca](slike/ts01_3_javni_profil_shranjen_izvajalec.png) | ![Zavihek shranjenih izvajalcev](slike/ts01_4_zavihek_shranjeni_izvajalci.png) |
+
 ---
 
 ### 3.2 Testni scenarij `TS-02`: Izvedba zahtevka skozi življenjski cikel do zaključka (`COMPLETED`), izdaja PDF računa ter oddaja, urejanje in brisanje ocene izvajalca
@@ -120,6 +128,14 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 | **10** | **Okno A (Stranka):** Klikni **Edit** ob svoji oceni, spremeni oceno na **`4 ★`**, uredi komentar v `"Zelo dobro opravljeno delo, priporočam."` in shrani. | Obstoječa ocena se posodobi na `4 ★` in nov komentar brez ustvarjanja dvojnika (`Total Reviews` ostane nespremenjen). | Kartica ocene in povprečje sta se posodobila na `4 ★`, število ocen je ostalo nespremenjeno. | **PASSED** ✓ |
 | **11** | **Okno A (Stranka):** Klikni **Delete** ob svoji oceni in potrdi izbris v pojavnem oknu. | Ocena se izbriše iz seznama, `Total Reviews` se zmanjša za `-1`, gumb `Write a review` pa je ponovno viden. | Ocena je bila trajno odstranjena, statistika ocen pa se je vrnila na prvotno stanje. | **PASSED** ✓ |
 
+#### Zaslonski posnetki izvedbe `TS-02`
+
+| Koraka 2–3: Zahtevek `FIX-0042` v stanju `IN_TRANSIT` s sledenjem lokaciji v živo | Koraka 4–5: Obrazec za izdajo računa in validacija minimalnega zneska (`€1.00`) |
+| :---: | :---: |
+| ![Zahtevek v tranzitu s sledenjem v živo](slike/ts02_1_zahtevek_v_tranzitu_sledenje.png) | ![Izdaja računa in validacija zneska](slike/ts02_2_izdaja_racuna_validacija_zneska.png) |
+| **Koraka 6–8: Zaključen zahtevek `FIX-0042` (`COMPLETED`) z izdanim računom `€65.00`** | **Koraka 9–10: Oddana ocena (`5 ★`) z možnostjo urejanja in izbrisa v razdelku *03 Reviews*** |
+| ![Zaključen zahtevek in prenos računa](slike/ts02_3_zakljucen_zahtevek_in_prenos_racuna.png) | ![Oddana in urejena ocena izvajalca](slike/ts02_4_oddana_in_urejena_ocena_izvajalca.png) |
+
 ---
 
 ### 3.3 Testni scenarij `TS-03`: Klepet v realnem času (pošiljanje, urejanje in brisanje sporočil) ter upravljanje obvestil
@@ -146,6 +162,14 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 | **5** | **Okno A (Stranka):** Pošlji sporočilo `"Pomota v sporočilu"`, nato na njem klikni ikono **Delete**. | Sporočilo se v obeh oknih v živo spremeni v obvestilo o izbrisanem sporočilu (*This message was deleted*), gumbi za urejanje pa izginejo. | Vsebina oblačka se je v obeh oknih nadomestila z oznako izbrisanega sporočila. | **PASSED** ✓ |
 | **6** | **Okno A (Stranka):** Klikni na ikono zvončka (`NotificationBell`) v navigacijski vrstici in izberi **Mark all read**. | Vsa obvestila v seznamu postanejo prebrana, oranžna značka s številko neprebranih obvestil na ikoni zvončka pa izgine (`0`). | Vsa obvestila so bila označena kot prebrana, značka na zvončku je izginila. | **PASSED** ✓ |
 | **7** | **Okno A (Stranka):** V meniju zvončka (`NotificationBell`) klikni gumb **Clear all**. | Vsa obvestila se izbrišejo iz seznama in prikaže se sporočilo praznega stanja (*"You're all caught up"*). | Seznam obvestil se je izpraznil in prikazalo se je prazno stanje. | **PASSED** ✓ |
+
+#### Zaslonski posnetki izvedbe `TS-03`
+
+| Korak 2: Prejem potisnega obvestila v realnem času v komponenti `NotificationBell` | Koraki 1, 3–5: Klepet v živo z urejenim (*edited*) in izbrisanim sporočilom (`/chat`) |
+| :---: | :---: |
+| ![Potisno obvestilo v zvončku](slike/ts03_1_potisno_obvestilo_zvoncka.png) | ![Klepet ter urejanje in brisanje sporočil](slike/ts03_2_klepet_urejanje_in_brisanje_sporocil.png) |
+| **Koraka 6–7: Počiščen seznam obvestil v komponenti `NotificationBell` (*"You're all caught up."*)** | |
+| ![Počiščena obvestila v zvončku](slike/ts03_3_pociscena_obvestila_zvoncka.png) | |
 
 ---
 
@@ -356,6 +380,15 @@ V skupini smo se uskladili in izberali po 3 funkcionalne testne scenarije na vsa
 
 ### 4.2 Povzetek rezultatov izvedenih scenarijev
 
+#### Scenariji člana ekipe: Luka Grobelnik (`TS-01` – `TS-03`)
+
+| ID scenarija | Naziv testnega scenarija | Število korakov | Uspešni koraki (`PASSED`) | Neuspešni koraki (`FAILED`) | Blokirani (`BLOCKED`) | Končni status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **TS-01** | Iskanje izvajalcev z večkriterijskimi filtri, razvrščanje in upravljanje priljubljenih izvajalcev | 8 | 8 | 0 | 0 | **PASSED** ✓ |
+| **TS-02** | Izvedba zahtevka skozi življenjski cikel do zaključka (`COMPLETED`), izdaja PDF računa ter oddaja, urejanje in brisanje ocene izvajalca | 11 | 11 | 0 | 0 | **PASSED** ✓ |
+| **TS-03** | Klepet v realnem času (pošiljanje, urejanje in brisanje sporočil) ter upravljanje obvestil | 7 | 7 | 0 | 0 | **PASSED** ✓ |
+| **Skupaj (Luka Grobelnik)** | **3 izvedeni funkcionalni testni scenariji** | **26** | **26 (100 %)** | **0 (0 %)** | **0 (0 %)** | **USPEŠNO** |
+
 #### Scenariji člana ekipe: Jan Mrkonjič (`TS-04` – `TS-06`)
 
 | ID scenarija | Naziv testnega scenarija | Število korakov | Uspešni koraki (`PASSED`) | Neuspešni koraki (`FAILED`) | Blokirani (`BLOCKED`) | Končni status |
@@ -409,6 +442,6 @@ Pri pripravi in izvedbi naloge smo v skladu z navodili transparentno zabeležili
 - **Uporabljeni model:** Gemini 4 Argon (Medium) (v okolju Antigravity IDE).
 - **Namen uporabe:**
   1. Pregled obstoječe dokumentacije (`README.md`, `CLAUDE.md`, `Naloga1`, `Naloga2`) in izvorne kode za obnovo kataloga ključnih funkcionalnosti (`F-01`–`F-08`).
-  2. Strukturiranje testnih scenarijev `TS-04`, `TS-05` in `TS-06` v skladu s standardom **ISO/IEC/IEEE 29119-3:2021**.
-  3. Priprava avtomatizirane skripte Playwright za zagon scenarijev `TS-04`, `TS-05` in `TS-06` v spletnem odjemalcu ter zajem zaslonskih posnetkov v mapo `Naloga3/slike/`.
+  2. Strukturiranje testnih scenarijev `TS-01`–`TS-06` v skladu s standardom **ISO/IEC/IEEE 29119-3:2021**.
+  3. Priprava avtomatizirane skripte Playwright za zagon scenarijev `TS-01`–`TS-06` v spletnem odjemalcu ter zajem zaslonskih posnetkov v mapo `Naloga3/slike/`.
 - **Način preverjanja:** Vsi testni koraki, vhodni podatki, pričakovani odzivi in zajeti zaslonski posnetki v `Naloga3/slike/` so bili preverjeni z dejanskim zagonom spletnega odjemalca (`http://localhost:5173`) in primerjavo z implementacijo v `frontend/src/` ter `backend/src/`.
