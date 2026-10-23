@@ -55,6 +55,12 @@ public final class IbanValidator {
             return false;
         }
 
+        // Check digits must be ASCII digits, even when the checksum passes.
+        if (s.charAt(2) < '0' || s.charAt(2) > '9'
+                || s.charAt(3) < '0' || s.charAt(3) > '9') {
+            return false;
+        }
+
         String country = s.substring(0, 2);
         Integer expected = LENGTHS.get(country);
         if (expected == null || s.length() != expected) return false;
