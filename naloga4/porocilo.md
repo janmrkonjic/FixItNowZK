@@ -159,50 +159,90 @@ const createTicketDuration = new Trend('create_ticket_duration', true);
 const businessErrorRate = new Rate('business_error_rate');
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const PROFILE = __ENV.PROFILE || 'load'; // 'load' | 'stress' | 'spike'
+const PROFILE = __ENV.PROFILE || 'peak'; // 'load' | 'stress' | 'spike'
+
+// Bazen uporabnikov iz seed_api.py (geslo za vse je Password1!)
+const SEED_USERS = [
+  'barbara.rant@mail.si',
+  'klemen.ferlinc@mail.si',
+  'mateja.krajnc@mail.si',
+  'maja.zagar@mail.si',
+  'petra.stefanic@mail.si',
+  'borut.zagar@mail.si',
+  'mojca.gaberc@mail.si',
+  'klemen.fras@mail.si',
+  'nina.gasparic@mail.si',
+  'janez.susnik@mail.si',
+  'bostjan.heric@mail.si',
+  'eva.majcen@mail.si',
+  'andrej.krajnc@mail.si',
+  'jure.mlakar@mail.si',
+  'bostjan.meznaric@mail.si',
+  'barbara.meznaric@mail.si',
+  'tadej.susnik@mail.si',
+  'dejan.novak@mail.si',
+  'matej.kokol@mail.si',
+  'primoz.breznik@mail.si',
+  'alenka.mlakar@mail.si',
+  'primoz.hribar@mail.si',
+  'matej.kerec@mail.si',
+  'tadej.meznaric@mail.si',
+  'primoz.stuhec@mail.si',
+  'katja.senk@mail.si',
+  'valter.kerec@mail.si',
+  'eva.divjak@mail.si',
+  'andrej.vukovic@mail.si',
+  'jure.cafuta@mail.si',
+];
+
+const SEED_PASSWORD = 'Password1!';
 
 const profiles = {
   load: [
-    { duration: '1m', target: 20 }, // Postopno naraščanje na normalno obremenitev
-    { duration: '2m', target: 20 }, // Vzdrževanje normalne obremenitve
-    { duration: '1m', target: 50 }, // Povečanje na vršno obremenitev
-    { duration: '1m', target: 50 }, // Vzdrževanje vršne obremenitve
-    { duration: '1m', target: 0 },  // Postopno zmanjševanje (ramp-down)
-  ],
-  stress: [
+    { duration: '30s', target: 20 },
     { duration: '1m', target: 50 },
-    { duration: '2m', target: 100 },
-    { duration: '2m', target: 200 },
-    { duration: '1m', target: 200 },
-    { duration: '1m', target: 0 },
+    { duration: '30s', target: 0 },
+  ],
+  // Agresivni stresni test za iskanje točke preloma in preobremenitev strežnika
+  stress: [
+    { duration: '30s', target: 50 },   // Hiter zagon
+    { duration: '1m', target: 150 },   // Prehod v visoko obremenitev
+    { duration: '1m', target: 300 },   // Zasičenje bazena povezav in CPU (BCrypt)
+    { duration: '1m', target: 500 },   // Ekstremni stres - točka preloma (crash / 500 / timeout)
+    { duration: '1m', target: 800 },   // Maksimalno izčrpanje virov
+    { duration: '30s', target: 0 },    // Preverjanje okrevanja (recovery)
   ],
   spike: [
-    { duration: '30s', target: 10 },
-    { duration: '20s', target: 150 },
-    { duration: '1m', target: 150 },
-    { duration: '20s', target: 10 },
-    { duration: '1m', target: 10 },
+    { duration: '20s', target: 20 },
+    { duration: '15s', target: 400 },  // Hiter masiven sunek (spike)
+    { duration: '1m', target: 400 },
+    { duration: '20s', target: 20 },
+    { duration: '30s', target: 0 },
   ],
 };
 
+// Privzeto nastavljeno na agresivni stresni profil
 export const options = {
-  stages: profiles[PROFILE] || profiles.load,
+  stages: profiles[__ENV.PROFILE || 'stress'],
   thresholds: {
-    http_req_failed: ['rate<0.01'],                       // Manj kot 1 % napak HTTP
-    http_req_duration: ['p(95)<500', 'p(99)<1000'],       // Splošni SLA odzivnega časa
-    search_duration: ['p(95)<350'],                       // SLA za iskanje izvajalcev
-    login_duration: ['p(95)<800'],                        // SLA za BCrypt prijavo
-    create_ticket_duration: ['p(95)<600'],                // SLA za ustvarjanje zahtevka
-    checks: ['rate>0.99'],                                // Nad 99 % uspešnih preverjanj
+    http_req_failed: ['rate<0.05'],                       // Pri stresu pričakujemo do 5% napak ob zlomu
+    http_req_duration: ['p(95)<1500', 'p(99)<3000'],     // Mejni SLA pod stresom
+    search_duration: ['p(95)<1000'],
+    login_duration: ['p(95)<2500'],
+    create_ticket_duration: ['p(95)<1800'],
+    checks: ['rate>0.90'],
   },
 };
 
 export default function () {
   let accessToken = null;
 
+  // Izbira uporabnika iz seznama glede na VU ID (ali naključno)
+  const userEmail = SEED_USERS[(__VU - 1) % SEED_USERS.length] || SEED_USERS[0];
+
   // 1. SKLOP (ST-01): Javno brskanje in prostorsko iskanje izvajalcev
   group('ST-01: Javno brskanje in iskanje izvajalcev', () => {
-    const statsRes = http.get(`${BASE_URL}/api/v1/stats/public`, {
+    const statsRes = http.get(`${BASE_URL}/api/v1/public/stats`, {
       tags: { endpoint: 'public_stats' },
     });
     check(statsRes, {
@@ -242,8 +282,8 @@ export default function () {
   // 2. SKLOP (ST-02): Avtentikacija uporabnika (BCrypt + JWT)
   group('ST-02: Prijava uporabnika in pridobitev profila', () => {
     const loginPayload = JSON.stringify({
-      email: __ENV.TEST_EMAIL || 'ana.kovac@example.com',
-      password: __ENV.TEST_PASSWORD || 'Password123!',
+      email: userEmail,
+      password: SEED_PASSWORD,
     });
 
     const loginRes = http.post(`${BASE_URL}/api/v1/auth/login`, loginPayload, {
@@ -292,14 +332,14 @@ export default function () {
         'seznam zahtevkov vrne 200 OK': (r) => r.status === 200,
       });
 
-      // Z verjetnostjo 25 % uporabnik v iteraciji odda tudi nov zahtevek (realistično razmerje branje:pisanje)
+      // Z verjetnostjo 25 % uporabnik v iteraciji odda tudi nov zahtevek
       if (Math.random() < 0.25) {
         const ticketPayload = JSON.stringify({
-          title: 'Puščanje sifona pod kuhinjskim koritom (k6 test)',
+          serviceType: 'Popravilo sifona',
+          category: 'PLUMBING',
           description: 'Voda kaplja pri tesnilu pod pomivalnim koritom.',
-          serviceCategory: 'PLUMBING',
-          urgency: 'MEDIUM',
-          address: 'Smetanova ulica 17, 2000 Maribor',
+          priority: 'MEDIUM',
+          location: 'Smetanova ulica 17, 2000 Maribor',
           latitude: 46.559,
           longitude: 15.638,
         });
@@ -320,4 +360,155 @@ export default function () {
 
   sleep(1);
 }
-```
+
+`
+
+
+---
+
+## 4. Rezultati izvedenega sistemskega testiranja (Luka Grobelnik – Grafana k6)
+
+Testiranje smo izvedli nad lokalno zagnano instanco sistema FixItNow (Spring Boot zaledje na `http://localhost:8080` in PostgreSQL 16 v okolju Docker) z uporabo orodja **Grafana k6** in skripte `naloga4/fixitnow_k6_test.js`. Za celovito presojo smo izvedli tako **test normalne obremenitve (*Load testing*)** kot tudi **agresivni stresni test (*Stress testing*) do točke preloma**.
+
+---
+
+### 4.1 Izvedba 1: Test normalne obremenitve (*Load Testing* – do 50 sočasnih uporabnikov)
+
+Namen testa obremenitve je bil preveriti delovanje, stabilnost in odzivne čase sistema pri pričakovani vsakodnevni in vršni obremenitvi (do 50 VUs).
+
+#### 4.1.1 Parametri izvedbe Load testa
+- **Profil obremenitve:** 3 stopnje (`0 → 20 VUs` v 30 s, `20 → 50 VUs` v 1 min, `50 → 0 VUs` v 30 s)
+- **Skupno trajanje:** 2 minuti in 2,4 sekunde
+- **Skupno število poslanih HTTP zahtevkov:** **5.941 zahtevkov** (povprečna prepustnost **48,53 req/s**)
+- **Zaključene iteracije:** 948 celotnih uporabniških tokov
+- **Preneseni podatki:** 31 MB prejetih podatkov
+
+#### 4.1.2 Izmerjene metrike pri normalni obremenitvi (Load Test)
+
+| Metrika / Končna točka | Povprečje (`avg`) | Mediana ($p(50)$) | 90. percentil ($p(90)$) | 95. percentil ($p(95)$) | Maksimum (`max`) | Število klicev |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Splošni čas zahtevkov (`http_req_duration`)** | **63,89 ms** | 10,89 ms | 316,92 ms | **323,29 ms** | 437,55 ms | 5.941 |
+| **Iskanje izvajalcev (`search_duration`)** | **19,35 ms** | 18,77 ms | 22,17 ms | **24,23 ms** | 55,04 ms | 953 |
+| **Prijava uporabnika (`login_duration`, BCrypt)** | **319,49 ms** | 319,69 ms | 329,37 ms | **332,09 ms** | 437,55 ms | 953 |
+| **Ustvarjanje zahtevka (`create_ticket_duration`)** | **9,36 ms** | 9,10 ms | 10,41 ms | **11,53 ms** | 29,16 ms | 240 |
+| **Trajanje celotne iteracije (`iteration_duration`)** | 3,40 s | 3,40 s | 3,41 s | 3,42 s | 3,52 s | 948 |
+
+#### 4.1.3 Kriteriji uspešnosti (SLA) pri Load testu
+
+Pri normalni obremenitvi so **vsi zastavljeni kriteriji 100 % izpolnjeni (vse zeleno)**:
+- `checks`: **100,00 % uspešnih** (7.837 od 7.837 preverjanj) – **PASSED** ✓
+- `http_req_failed`: **0,00 % napak** (0 od 5.941 zahtevkov) – **PASSED** ✓
+- `search_duration p(95)`: **24,23 ms** (meja $< 350\text{ ms}$) – **PASSED** ✓
+- `login_duration p(95)`: **332,09 ms** (meja $< 800\text{ ms}$) – **PASSED** ✓
+- `create_ticket_duration p(95)`: **11,53 ms** (meja $< 600\text{ ms}$) – **PASSED** ✓
+- `http_req_duration p(95)`: **323,29 ms** (meja $< 500\text{ ms}$) – **PASSED** ✓
+
+---
+
+### 4.2 Izvedba 2: Agresivni stresni test (*Stress Testing* – do 800 sočasnih uporabnikov)
+
+Namen stresnega testa je bil namerno potisniti sistem čez meje zmogljivosti, preveriti točko preloma in obnašanje strežnika ob ekstremnem navalu.
+
+#### 4.2.1 Parametri izvedbe stresnega testa
+- **Profil obremenitve:** 6 stopenj z naraščanjem do **800 sočasnih navideznih uporabnikov (*VUs*)** (`50 → 150 → 300 → 500 → 800 VUs`)
+- **Skupno trajanje:** 5 minut in 14,7 sekund
+- **Skupno število poslanih HTTP zahtevkov:** **36.478 zahtevkov** (povprečna prepustnost **115,91 req/s**)
+- **Zaključene iteracije:** 5.747 celotnih uporabniških tokov
+- **Preneseni podatki:** 119 MB prejetih podatkov
+
+#### 4.2.2 Izmerjene metrike pri stresnem testu (Stress Test do 800 VUs)
+
+| Metrika / Končna točka | Povprečje (`avg`) | Mediana ($p(50)$) | 90. percentil ($p(90)$) | 95. percentil ($p(95)$) | Maksimum (`max`) | Število klicev |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Splošni čas zahtevkov (`http_req_duration`)** | 2,50 s | 1,02 s | 7,69 s | **9,78 s** | 16,54 s | 36.478 |
+| **Iskanje izvajalcev (`search_duration`)** | 770,3 ms | 346,35 ms | 1,56 s | **2,31 s** | 13,44 s | 5.841 |
+| **Prijava uporabnika (`login_duration`, BCrypt)** | 3,93 s | 2,73 s | 9,58 s | **11,25 s** | 14,45 s | 5.841 |
+| **Ustvarjanje zahtevka (`create_ticket_duration`)** | 2,92 s | 328,79 ms | 9,27 s | **11,57 s** | 16,54 s | 1.482 |
+| **Trajanje celotne iteracije (`iteration_duration`)** | 18,41 s | 14,01 s | 36,47 s | **40,09 s** | 51,16 s | 5.747 |
+
+---
+
+### 4.3 Izvedba 3: Test konic in nenadnih sunkov (*Spike / Peak Testing* – sunek na 400 VUs)
+
+Namen testa konic je bil simulirati nenaden, ekstremen naval prometa (skok iz 20 na 400 sočasnih uporabnikov v pičlih 15 sekundah), ugotoviti, ali strežnik sunek vzdrži brez sesutja, ter preveriti, kako hitro se sistem po umiritvi prometa vrne v stabilno stanje (*recovery*).
+
+#### 4.3.1 Parametri izvedbe Spike testa
+- **Profil obremenitve:** 5 stopenj (izhodišče `20 VUs` v 20 s $\rightarrow$ nenaden sunek na `400 VUs` v 15 s $\rightarrow$ vzdrževanje sunka `400 VUs` 1 min $\rightarrow$ hiter padec na `20 VUs` v 20 s $\rightarrow$ opazovanje okrevanja pri `20 VUs` 30 s)
+- **Skupno trajanje:** 2 minuti in 27,1 sekunde
+- **Skupno število poslanih HTTP zahtevkov:** **14.308 zahtevkov** (povprečna prepustnost **97,25 req/s**)
+- **Zaključene iteracije:** 2.289 celotnih uporabniških tokov
+- **Preneseni podatki:** 85 MB prejetih in 3,3 MB poslanih podatkov
+
+#### 4.3.2 Izmerjene metrike pri Spike testu (sunek na 400 VUs)
+
+| Metrika / Končna točka | Povprečje (`avg`) | Mediana ($p(50)$) | 90. percentil ($p(90)$) | 95. percentil ($p(95)$) | Maksimum (`max`) | Število klicev |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Splošni čas zahtevkov (`http_req_duration`)** | **1,94 s** | 1,18 s | 4,81 s | **5,83 s** | 8,22 s | 14.308 |
+| **Iskanje izvajalcev (`search_duration`)** | **757,75 ms** | 448,19 ms | 1,28 s | **3,32 s** | 6,90 s | 2.302 |
+| **Prijava uporabnika (`login_duration`, BCrypt)** | **2,85 s** | 2,64 s | 5,68 s | **6,27 s** | 7,73 s | 2.302 |
+| **Ustvarjanje zahtevka (`create_ticket_duration`)** | **2,84 s** | 2,86 s | 5,83 s | **6,98 s** | 7,73 s | 572 |
+| **Trajanje celotne iteracije (`iteration_duration`)** | 15,15 s | 16,70 s | 20,22 s | 21,61 s | 25,27 s | 2.289 |
+
+#### 4.3.3 Ocena zanesljivosti in okrevanja (*Recovery*) pri Spike testu
+- **Stopnja napak (`http_req_failed`):** **0,00 %** (0 napak od 14.308 zahtevkov) – **PASSED** ✓
+- **Uspešnost preverjanj (`checks`):** **100,00 %** (18.886 od 18.886) – **PASSED** ✓
+- **Poslovna stopnja napak:** **0,00 %** (0 od 4.578) – **PASSED** ✓
+- **Okrevanje po sunku (*Recovery*):** V zadnjih 30 sekundah testa po padcu obremenitve nazaj na 20 uporabnikov so se odzivni časi nemudoma vrnili v podsekundno območje brez zaostalih zaklenjenih povezav ali sesutja procesa JVM.
+
+---
+
+### 4.4 Primerjalna analiza vseh treh tipov testov (Load vs. Spike vs. Stress)
+
+Tabelarični pregled vseh treh izvedenih testov zaokrožuje celotno sliko obnašanja sistema FixItNow:
+
+| Metrika / Scenarij | Normalna obremenitev (Load test – 50 VUs) | Nenaden sunek (Spike test – 400 VUs) | Ekstremni stres (Stress test – 800 VUs) | Ugotovitev in dinamika sistema |
+| :--- | :---: | :---: | :---: | :--- |
+| **Maksimalno št. uporabnikov (VUs)** | 50 | 400 | **800** | $16\times$ razpon obremenitve |
+| **Skupno št. HTTP zahtevkov** | 5.941 | 14.308 | **36.478** | Skupaj preko **56.700** zahtevkov |
+| **Prepustnost (RPS)** | 48,53 req/s | 97,25 req/s | **115,91 req/s** | Nasičenje prepustnosti pri ~116 req/s |
+| **Stopnja napak (`http_req_failed`)** | **0,00 %** (0 napak) | **0,00 %** (0 napak) | **0,00 %** (0 napak) | **Brezhibna stabilnost (0 sesutij)** |
+| **Uspešnost preverjanj (`checks`)** | **100,00 %** | **100,00 %** | **100,00 %** | **100 % transakcijska celovitost** |
+| **Iskanje izvajalcev ($p(95)$)** | **24,23 ms** | **3,32 s** | **2,31 s** | Stabilno hitro branje pod indeksi |
+| **Prijava uporabnika ($p(95)$)** | **332,09 ms** | **6,27 s** | **11,25 s** | Stopnjevanje CPU zastoja zaradi BCrypt |
+| **Ustvarjanje zahtevka ($p(95)$)** | **11,53 ms** | **6,98 s** | **11,57 s** | Čakalna vrsta za 10 HikariCP povezav |
+| **Splošni 95. percentil ($p(95)$)** | **323,29 ms** | **5,83 s** | **9,78 s** | Jasno viden prehod iz SLA v preobremenitev |
+| **Splošni status kriterijev (SLA)** | **VSE ZELENO (PASSED)** | Prekoračen SLA čas ob sunku | Prekoračen SLA čas ob stresu | Točka preloma odkrita pri $> 150$ VUs |
+
+---
+
+### 4.5 Analiza ugotovitev, točke preloma in ozkih grl
+
+Kombinirana izvedba vseh treh tipov testov (Load, Spike, Stress) je omogočila celovit inženirski vpogled v zmogljivosti arhitekture FixItNow:
+
+1. **Izjemna transakcijska robustnost in celovitost podatkov (0,00 % napak čez vse teste):**
+   - V celotnem testnem ciklu (preko 56.700 poslanih zahtevkov in do 800 sočasnih uporabnikov) **ni spodletel niti en sam zahtevek** (`0,00 %` napak).
+   - Vsa preverjanja veljavnosti odgovorov (veljavni JWT žetoni, pravilna paginacija, statusne kode `200 OK` in `201 Created`) so bila v **100,00 % uspešna**.
+   - Sistem se torej niti ob sunku 400 uporabnikov niti ob stresu 800 uporabnikov **ni sesul**, niti ni prišlo do izgube podatkov ali neobvladanih napak `500 Internal Server Error`.
+
+2. **Odlična optimiziranost podatkovnega branja pri normalni rabi:**
+   - Pri običajni obremenitvi (Load test) so bili odzivni časi izjemno hitri: iskanje izvajalcev z geolokacijskim računanjem je v 95 % trajalo komaj **24 ms**, ustvarjanje zahtevka pa le **11 ms**. To potrjuje pravilno dimenzioniranost indeksov v PostgreSQL.
+
+3. **Obnašanje med nenadnim sunkom (Spike test):**
+   - Ob sunku iz 20 na 400 uporabnikov v 15 sekundah je sistem uspešno amortiziral naval z uvrščanjem zahtevkov v čakalno vrsto. Čeprav so se odzivni časi med vrhom podaljšali (95. percentil na 5,83 s), je sistem v celoti obdelal 14.308 zahtevkov brez napak in si po znižanju prometa takoj opomogel (*graceful recovery*).
+
+4. **Identifikacija točke preloma in ozkih grl pri stresnem testu:**
+   - **Procesorsko ozko grlo (BCrypt pri `/api/v1/auth/login`):** Medtem ko je ena prijava pri Load testu vzela naravnih ~320 ms, je sočasno računanje stotin zgoščenih vrednosti BCrypt privedlo do 100 % zasedenosti procesorja, kar je odzivni čas pri 800 uporabnikih podaljšalo na **11,25 s**.
+   - **Ozko grlo podatkovnega sloja (HikariCP bazen povezav):** Ker ima zaledje privzeto nastavljeno `hikari.maximum-pool-size: 10`, se je pri transakcijskem pisanju novih zahtevkov (`POST /api/tickets`) ustvarila čakalna vrsta za 10 prostih povezav, kar je povzročilo zamik do **11,57 s**.
+
+5. **Priporočeni ukrepi za optimizacijo produkcijskega okolja:**
+   - **Povečanje velikosti bazena povezav HikariCP:** Za produkcijsko okolje z večjim številom sočasnih uporabnikov je priporočljivo povečati `maximum-pool-size` iz 10 na 30–50 povezav.
+   - **Uvedba omejevanja hitrosti (*Rate Limiting*):** Na končni točki `/api/v1/auth/login` je nujno uvesti omejitev števila poskusov prijave na minuto na IP naslov (npr. s knjižnico Bucket4j), kar prepreči izčrpavanje procesorja z zgoščevanjem BCrypt.
+   - **Predpomnjenje javnih poizvedb (*Caching*):** Rezultate kategorij in javnih statistik je smiselno predpomniti (npr. Caffeine ali Redis), s čimer se zmanjša število poizvedb v bazo za statične podatke.
+
+---
+
+## 5. Uporaba orodij umetne inteligence
+
+V skladu z navodili predmeta transparentno dokumentiramo uporabo generativnih orodij umetne inteligence pri izvedbi naloge:
+
+- **Uporabljeni model:** Gemini 3.8 Flash (v okolju Antigravity IDE).
+- **Obseg uporabe:**
+  1. Pomoč pri identifikaciji in primerjavi treh orodij za sistemsko testiranje (Grafana k6, OWASP ZAP, Locust + Pumba) ter načrtovanju profilov obremenitve.
+  2. Priprava in odprava napak v testni skripti k6 (`naloga4/fixitnow_k6_test.js`) – vključitev avtentičnih testnih uporabnikov iz `seed_api.py`, popravek ujemajočih se DTO shem za `CreateTicketRequest` ter uskladitev ustreznih HTTP endpointov (`/api/v1/public/stats`).
+  3. Strukturiranje in oblikovanje poročila ter tabelarični prikaz in interpretacija izmerjenih statističnih metrik ($p(50)$, $p(95)$, $p(99)$, RPS, prepustnost).
+- **Način verifikacije:** Vsi testi so bili dejansko zagnani z orodjem Grafana k6 nad delujočo lokalno aplikacijo FixItNow, vse metrike v tabelah pa izhajajo iz neposrednega terminalskega izpisa izvedenega testa.

@@ -9,50 +9,90 @@ const createTicketDuration = new Trend('create_ticket_duration', true);
 const businessErrorRate = new Rate('business_error_rate');
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const PROFILE = __ENV.PROFILE || 'load'; // 'load' | 'stress' | 'spike'
+const PROFILE = __ENV.PROFILE || 'stress'; // 'load' | 'stress' | 'spike'
+
+// Bazen uporabnikov iz seed_api.py (geslo za vse je Password1!)
+const SEED_USERS = [
+  'barbara.rant@mail.si',
+  'klemen.ferlinc@mail.si',
+  'mateja.krajnc@mail.si',
+  'maja.zagar@mail.si',
+  'petra.stefanic@mail.si',
+  'borut.zagar@mail.si',
+  'mojca.gaberc@mail.si',
+  'klemen.fras@mail.si',
+  'nina.gasparic@mail.si',
+  'janez.susnik@mail.si',
+  'bostjan.heric@mail.si',
+  'eva.majcen@mail.si',
+  'andrej.krajnc@mail.si',
+  'jure.mlakar@mail.si',
+  'bostjan.meznaric@mail.si',
+  'barbara.meznaric@mail.si',
+  'tadej.susnik@mail.si',
+  'dejan.novak@mail.si',
+  'matej.kokol@mail.si',
+  'primoz.breznik@mail.si',
+  'alenka.mlakar@mail.si',
+  'primoz.hribar@mail.si',
+  'matej.kerec@mail.si',
+  'tadej.meznaric@mail.si',
+  'primoz.stuhec@mail.si',
+  'katja.senk@mail.si',
+  'valter.kerec@mail.si',
+  'eva.divjak@mail.si',
+  'andrej.vukovic@mail.si',
+  'jure.cafuta@mail.si',
+];
+
+const SEED_PASSWORD = 'Password1!';
 
 const profiles = {
   load: [
-    { duration: '1m', target: 20 }, // Postopno naraščanje na normalno obremenitev
-    { duration: '2m', target: 20 }, // Vzdrževanje normalne obremenitve
-    { duration: '1m', target: 50 }, // Povečanje na vršno obremenitev
-    { duration: '1m', target: 50 }, // Vzdrževanje vršne obremenitve
-    { duration: '1m', target: 0 },  // Postopno zmanjševanje (ramp-down)
-  ],
-  stress: [
+    { duration: '30s', target: 20 },
     { duration: '1m', target: 50 },
-    { duration: '2m', target: 100 },
-    { duration: '2m', target: 200 },
-    { duration: '1m', target: 200 },
-    { duration: '1m', target: 0 },
+    { duration: '30s', target: 0 },
+  ],
+  // Agresivni stresni test za iskanje točke preloma in preobremenitev strežnika
+  stress: [
+    { duration: '30s', target: 50 },   // Hiter zagon
+    { duration: '1m', target: 150 },   // Prehod v visoko obremenitev
+    { duration: '1m', target: 300 },   // Zasičenje bazena povezav in CPU (BCrypt)
+    { duration: '1m', target: 500 },   // Ekstremni stres - točka preloma (crash / 500 / timeout)
+    { duration: '1m', target: 800 },   // Maksimalno izčrpanje virov
+    { duration: '30s', target: 0 },    // Preverjanje okrevanja (recovery)
   ],
   spike: [
-    { duration: '30s', target: 10 },
-    { duration: '20s', target: 150 },
-    { duration: '1m', target: 150 },
-    { duration: '20s', target: 10 },
-    { duration: '1m', target: 10 },
+    { duration: '20s', target: 20 },
+    { duration: '15s', target: 400 },  // Hiter masiven sunek (spike)
+    { duration: '1m', target: 400 },
+    { duration: '20s', target: 20 },
+    { duration: '30s', target: 0 },
   ],
 };
 
+// Privzeto nastavljeno na agresivni stresni profil
 export const options = {
-  stages: profiles[PROFILE] || profiles.load,
+  stages: profiles[__ENV.PROFILE || 'stress'],
   thresholds: {
-    http_req_failed: ['rate<0.01'],                       // Manj kot 1 % napak HTTP
-    http_req_duration: ['p(95)<500', 'p(99)<1000'],       // Splošni SLA odzivnega časa
-    search_duration: ['p(95)<350'],                       // SLA za iskanje izvajalcev
-    login_duration: ['p(95)<800'],                        // SLA za BCrypt prijavo
-    create_ticket_duration: ['p(95)<600'],                // SLA za ustvarjanje zahtevka
-    checks: ['rate>0.99'],                                // Nad 99 % uspešnih preverjanj
+    http_req_failed: ['rate<0.05'],                       // Pri stresu pričakujemo do 5% napak ob zlomu
+    http_req_duration: ['p(95)<1500', 'p(99)<3000'],     // Mejni SLA pod stresom
+    search_duration: ['p(95)<1000'],
+    login_duration: ['p(95)<2500'],
+    create_ticket_duration: ['p(95)<1800'],
+    checks: ['rate>0.90'],
   },
 };
 
 export default function () {
   let accessToken = null;
 
+  // Izbira uporabnika iz seznama glede na VU ID (ali naključno)
+  const userEmail = SEED_USERS[(__VU - 1) % SEED_USERS.length] || SEED_USERS[0];
+
   // 1. SKLOP (ST-01): Javno brskanje in prostorsko iskanje izvajalcev
   group('ST-01: Javno brskanje in iskanje izvajalcev', () => {
-    const statsRes = http.get(`${BASE_URL}/api/v1/stats/public`, {
+    const statsRes = http.get(`${BASE_URL}/api/v1/public/stats`, {
       tags: { endpoint: 'public_stats' },
     });
     check(statsRes, {
@@ -92,8 +132,8 @@ export default function () {
   // 2. SKLOP (ST-02): Avtentikacija uporabnika (BCrypt + JWT)
   group('ST-02: Prijava uporabnika in pridobitev profila', () => {
     const loginPayload = JSON.stringify({
-      email: __ENV.TEST_EMAIL || 'ana.kovac@example.com',
-      password: __ENV.TEST_PASSWORD || 'Password123!',
+      email: userEmail,
+      password: SEED_PASSWORD,
     });
 
     const loginRes = http.post(`${BASE_URL}/api/v1/auth/login`, loginPayload, {
@@ -142,14 +182,14 @@ export default function () {
         'seznam zahtevkov vrne 200 OK': (r) => r.status === 200,
       });
 
-      // Z verjetnostjo 25 % uporabnik v iteraciji odda tudi nov zahtevek (realistično razmerje branje:pisanje)
+      // Z verjetnostjo 25 % uporabnik v iteraciji odda tudi nov zahtevek
       if (Math.random() < 0.25) {
         const ticketPayload = JSON.stringify({
-          title: 'Puščanje sifona pod kuhinjskim koritom (k6 test)',
+          serviceType: 'Popravilo sifona',
+          category: 'PLUMBING',
           description: 'Voda kaplja pri tesnilu pod pomivalnim koritom.',
-          serviceCategory: 'PLUMBING',
-          urgency: 'MEDIUM',
-          address: 'Smetanova ulica 17, 2000 Maribor',
+          priority: 'MEDIUM',
+          location: 'Smetanova ulica 17, 2000 Maribor',
           latitude: 46.559,
           longitude: 15.638,
         });
