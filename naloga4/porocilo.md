@@ -361,7 +361,7 @@ export default function () {
   sleep(1);
 }
 
-`
+```
 
 
 ---
@@ -512,3 +512,378 @@ V skladu z navodili predmeta transparentno dokumentiramo uporabo generativnih or
   2. Priprava in odprava napak v testni skripti k6 (`naloga4/fixitnow_k6_test.js`) – vključitev avtentičnih testnih uporabnikov iz `seed_api.py`, popravek ujemajočih se DTO shem za `CreateTicketRequest` ter uskladitev ustreznih HTTP endpointov (`/api/v1/public/stats`).
   3. Strukturiranje in oblikovanje poročila ter tabelarični prikaz in interpretacija izmerjenih statističnih metrik ($p(50)$, $p(95)$, $p(99)$, RPS, prepustnost).
 - **Način verifikacije:** Vsi testi so bili dejansko zagnani z orodjem Grafana k6 nad delujočo lokalno aplikacijo FixItNow, vse metrike v tabelah pa izhajajo iz neposrednega terminalskega izpisa izvedenega testa.
+
+---
+
+## 6. Podrobna opredelitev sistemskega testiranja – Alan Labaš (Locust + Docker Chaos / Pumba)
+
+### 6.1 Utemeljitev izbire orodij Locust in Pumba ter tipov testov za FixItNow
+
+Za podrobno obravnavo in izvedbo sem izbral **testiranje vzdržljivosti (*Soak / Endurance Testing*), testiranje skalabilnosti (*Scalability Testing*) ter testiranje okrevanja po izpadu (*Recovery / Chaos Testing*)** z uporabo ogrodja **Locust** v kombinaciji z orodjem za injiciranje kaosa v Docker zabojnike **Pumba** (`gaiaadm/pumba`).
+
+**Zakaj so ti tipi sistemskih testov kritični za projekt FixItNow:**
+1. **Dolgotrajna stabilnost sej in nevarnost puščanja baznih povezav (*HikariCP Connection Leaks*):** Aplikacija FixItNow pri vsakem dejanju prijavljene stranke odpira transakcije proti bazi PostgreSQL (`@Transactional`), pri čemer zaledni strežnik Spring Boot uporablja omejen bazen povezav **HikariCP** (`maximum-pool-size = 10`, `minimum-idle = 5`, `connection-timeout = 20000 ms`). Če katera izmed transakcij pri dolgotrajni obremenitvi ne sprosti povezave pravilno ali če nepaginirane poizvedbe sčasoma vračajo vedno večje količine podatkov, pride do postopne degradacije odzivnih časov ali izčrpanja pomnilnika JVM (*Memory Leak*).
+2. **Skalabilnost pri rasti podatkov in sočasnih sej:** Medtem ko kratkotrajni obremenitveni test preveri trenutno prepustnost, test vzdržljivosti in skalabilnosti razkrije, kako se odzivni časi in velikost prenesenih odgovorov (*payload size*) spreminjajo, ko se v bazi sproti nabirajo tisoči novih servisnih zahtevkov (`tickets` in `ticket_logs`).
+3. **Odpornost in samodejno okrevanje ob izpadu podatkovne baze (*Resiliency & Recovery*):** Ker podatkovna baza PostgreSQL teče v ločenem Docker zabojniku (`backend_postgres`), lahko v produkcijskem okolju pride do začasne omrežne prekinitve, preobremenitve diska ali zamrznitve zabojnika. Z orodjem **Pumba** namerno povzročimo začasno zamrznitev zabojnika (`pumba pause`) pod polno obremenitvijo in izmerimo:
+   - kako se sistem obnaša med izpadom (ali se JVM sesuje ali kontrolirano zavrača zahteve po poteku `timeout`),
+   - kolikšen je **čas okrevanja (*Recovery Time Objective – RTO*)** po odmrznitvi baze ter ali si bazen povezav HikariCP samodejno opomore brez ročnega ponovnega zagona strežnika.
+
+**Prednosti kombinacije Locust + Pumba:**
+- **Stanje ohranjajoče uporabniške seje (*Stateful Virtual Users*):** V Locustu vsak navidezni uporabnik (`HttpUser`) ob zagonu (`on_start`) izvede prijavo (`POST /api/v1/auth/login`), shrani prejeti JWT `accessToken` v spomin instance in ga nato več minut zaporedoma uporablja za avtenticirane klice z realističnimi utežmi (`@task(weight)`), kar natančno posnema dejansko rabo React SPA odjemalca.
+- **Vizualno spremljanje v realnem času in časovne vrste:** Spletni vmesnik Locust (`http://localhost:8089`) in izvoz zgodovine po sekundah (`--csv-full-history`) omogočata natančno opazovanje trenutka napada s Pumbo, strmega padca prepustnosti ter krivulje okrevanja.
+
+---
+
+### 6.2 Kaj preverjamo: opredelitev testnih scenarijev
+
+V skripti `naloga4/locustfile.py` je definiran razred `FixItNowSoakAndChaosUser`, ki posnema dolgotrajno aktivno stranko na platformi FixItNow z vmesnim časom razmišljanja (*wait_time*) `1,0–2,5 s` in izvaja štiri funkcionalne sklope z določenimi utežmi pogostosti:
+
+#### Scenarij `ST-A1`: Začetna avtentikacija ob vzpostavitvi seje in preverjanje profila (`on_start` + `@task(1)`)
+1. **`POST /api/v1/auth/login` (`on_start`):** Vsak izmed 40 sočasnih uporabnikov se ob vstopu v sistem prijavi z naključno izbranim računom iz nabora 30 predpripravljenih strank (`SEED_USERS`, geslo `Password1!`) in shrani `accessToken` ter `refreshToken`.
+2. **`GET /api/v1/users/me` (`@task(1)`):** Periodično preverjanje veljavnosti aktivne seje in branje profila prijavljenega uporabnika (pri čemer smo v prvotnem teku testirali tudi odziv strežnika na napačno/edninsko pot `/api/v1/user/me` za preverjanje obravnave izjem).
+
+#### Scenarij `ST-A2`: Stalno večkriterijsko prostorsko iskanje izvajalcev (`@task(4)` – najpogostejši bralni sklop, 40 % prometa)
+1. **`GET /api/v1/public/stats`:** Pridobitev javne statistike platforme.
+2. **`GET /api/v1/providers/search?category={random}&maxPrice=90&minExperience=1&latitude=46.5547&longitude=15.6459&radiusKm=35&page=0&size=12`:** Iskanje izvajalcev v radiju 35 km okoli Maribora z naključno izbrano kategorijo (`PLUMBING`, `ELECTRICAL`, `IT_SUPPORT`, `CLEANING`, `CARPENTRY`, `HVAC`, `APPLIANCE_REPAIR`, `PAINTING`) in preverjanjem veljavnosti paginiranega polja `content`.
+
+#### Scenarij `ST-A3`: Osveževanje nadzorne plošče in obvestil (`@task(3)` – 30 % prometa)
+1. **`GET /api/notifications/unread-count`:** Simulacija komponente `NotificationBell`, ki v brskalniku periodično preverja število neprebranih obvestil.
+2. **`GET /api/tickets`:** Pridobitev celotnega seznama servisnih zahtevkov prijavljene stranke. Ta klic je posebej pomemben za **testiranje vzdržljivosti (Soak test)**, saj se število zahtevkov stranke med testom stalno povečuje.
+
+#### Scenarij `ST-A4`: Transakcijsko ustvarjanje novih servisnih zahtevkov (`@task(2)` – 20 % prometa)
+1. **`POST /api/tickets`:** Oddaja novega servisnega zahtevka z naključno kategorijo in prioriteto (`LOW`, `MEDIUM`, `HIGH`) na lokaciji v Mariboru. Klic sproži pisalno transakcijo v tabelah `tickets` in `ticket_logs` ter preverja sprotno vračanje povezav v bazen HikariCP.
+
+---
+
+### 6.3 Pogoji izvajanja testov
+
+#### 6.3.1 Strojno in programsko testno okolje
+- **Operacijski sistem:** macOS (Apple Silicon `arm64`), lokalno testno okolje.
+- **Zaledni strežnik (SUT):** Java OpenJDK 64-Bit Server VM, Spring Boot (`http://localhost:8080`), HikariCP bazen povezav (`maximum-pool-size = 10`, `minimum-idle = 5`, `connection-timeout = 20000 ms`).
+- **Podatkovna baza:** PostgreSQL `16-alpine` v Docker zabojniku `backend_postgres` (`localhost:5433`), predhodno napolnjena s `seed_data.sql` in `seed_api.py` (50 izvajalcev, 50 strank, 100 začetnih zahtevkov).
+- **Generator obremenitve in Chaos orodje:**
+  - **Locust `2.34.0`** (zagnan s spletnim vmesnikom na `http://localhost:8089` in zastavicama `--csv=naloga4/locust_rezultati --csv-full-history`).
+  - **Pumba (`gaiaadm/pumba:latest`)**, povezana na `/var/run/docker.sock` za neposredno manipulacijo zabojnika `backend_postgres`.
+
+#### 6.3.2 Potek eksperimenta (Soak + Skalabilnost + Chaos Recovery profil)
+
+Celoten preizkus poteka neprekinjeno približno **7 minut** (402 sekundi aktivnega zajema metrik, skupaj **14.487 HTTP zahtevkov**) in je razdeljen v **štiri faze**:
+
+```mermaid
+flowchart LR
+    F1["Faza 1: Ramp-up / Skalabilnost\n0 → 40 uporabnikov\n(5 uporabnikov/s)"] --> F2["Faza 2: Soak / Endurance\nEnakomerno 40 uporabnikov\n(~3 min, ~38.5 req/s)"]
+    F2 --> F3["Faza 3: Chaos napad (Pumba)\ndocker pause backend_postgres\n(25 sekund zamrznitve baze)"]
+    F3 --> F4["Faza 4: Samodejno okrevanje\nOdmrznitev baze in nadaljevanje\nSoak testa pri 40 uporabnikih"]
+```
+
+| Faza | Tip testa | Opis pogojev izvajanja in vrste motnje | Trajanje faze |
+| :---: | :--- | :--- | :---: |
+| **1** | **Skalabilnost (*Ramp-up*)** | Postopno dodajanje uporabnikov od `0` do `40` s hitrostjo `5 uporabnikov/s`, kjer vsak uporabnik ob zagonu izvede BCrypt prijavo (`POST /api/v1/auth/login`), nato pa preide na izvajanje bralno-pisalnih nalog. | ~15 s |
+| **2** | **Vzdržljivost (*Soak Testing – del 1*)** | Vzdrževanje stalne obremenitve **40 sočasnih uporabnikov** (~38–40 req/s). Spremljanje stabilnosti porabe pomnilnika JVM (`RSS`), števila aktivnih/prostih povezav v `pg_stat_activity` in rasti velikosti odgovorov pri `GET /api/tickets`. | ~3 min |
+| **3** | **Izpad baze (*Chaos Injection – Pumba*)** | Sprožitev ukaza `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock gaiaadm/pumba pause --duration 25s backend_postgres`. Zabojnik PostgreSQL je za **25 sekund popolnoma zamrznjen** (procesi v zabojniku prejmejo `SIGSTOP`, TCP povezave obvisijo brez odgovora). | **25 s** (`15:14:48 – 15:15:13`) |
+| **4** | **Okrevanje in nadaljevanje (*Recovery & Soak – del 2*)** | Ob `15:15:13` Pumba samodejno odmrzne zabojnik (`SIGCONT`). Merimo čas, v katerem se izprazni čakalna vrsta v Spring Bootu / HikariCP in se odzivni časi ter prepustnost vrnejo na normalno raven, nato test nadaljujemo do skupno **14.487 zahtevkov**. | ~3 min |
+
+---
+
+### 6.4 Merjene metrike
+
+1. **Časovne metrike in percentili v Locustu:**
+   - Mediana ($p(50)$), povprečje (`Average`), $p(90)$, **$p(95)$**, **$p(99)$** in maksimum (`Max`) odzivnega časa v milisekundah – skupno (`Aggregated`) in ločeno za vsako končno točko (`ST-A1` do `ST-A4`).
+2. **Metrike prepustnosti in velikosti odgovorov (Scalability & Payload Metrics):**
+   - Trenutna in povprečna prepustnost (**Requests/s – RPS**) ter stopnja napak (**Failures/s**).
+   - **Povprečna velikost odgovora (`Average Content Size` v bajtih)** skozi čas za odkrivanje neomejene rasti podatkovnih odgovorov med dolgotrajnim vstavljanjem zahtevkov.
+3. **Sistemske metrike vira in baznih povezav (JVM & HikariCP Resource Metrics):**
+   - Poraba fizičnega pomnilnika procesa Java (**RSS – Resident Set Size** v MB in `%MEM`) ter zasedenost procesorja (`%CPU`) pred testom, med testom in po 14.487 zahtevkih.
+   - Število in stanje baznih povezav v PostgreSQL (`SELECT state, count(*) FROM pg_stat_activity`) za preverjanje, ali HikariCP ohranja omejitev `10 povezav` brez puščanja (`idle in transaction` / `leaked connections`).
+4. **Metrike odpornosti in okrevanja (Resiliency & Recovery Metrics):**
+   - **Čas do zaznave odpovedi (*Time to Failure Detection*):** čas od zamrznitve zabojnika do prvih potekov časovnih omejitev na odjemalcu.
+   - **Čas okrevanja (*Recovery Time – RTO*):** čas od trenutka, ko Pumba odmrzne zabojnik `backend_postgres`, do trenutka, ko mediana odzivnega časa spet pade pod `< 20 ms`, 95. percentil pa pod `< 50 ms` pri `0 Failures/s`.
+
+---
+
+### 6.5 Kriteriji uspešnosti (SLA pragovi za presojo ustreznosti sistema)
+
+| Področje preverjanja | Merjeni kazalnik / Metrika | Kriterij za **USPEŠNO (PASSED)** |
+| :--- | :--- | :--- |
+| **Vzdržljivost – Odzivni časi (Soak Test)** | Mediana $p(50)$ in 95. percentil $p(95)$ pri 40 uporabnikih (izven okna Pumba izpada) | **$p(50) < 50\text{ ms}$**, **$p(95) < 250\text{ ms}$** |
+| **Vzdržljivost – Puščanje pomnilnika (*Memory Leak*)** | Rast porabe fizičnega pomnilnika JVM (`RSS`) med 1. in 7. minuto (> 14.000 klicev) | Rast **$< 10\text{ \%}$** (brez neomejene rasti ali `OutOfMemoryError`) |
+| **Vzdržljivost – Bazne povezave (*HikariCP Pool*)** | Število odprtih povezav v `pg_stat_activity` med in po testu | Stalno **$\le 10$ povezav** (`maximum-pool-size`), **0** obviselih transakcij |
+| **Odpornost med izpadom baze (*Chaos Survival*)** | Stabilnost procesa Spring Boot med 25-sekundno zamrznitvijo baze (`pumba pause`) | Proces JVM se **ne sesuje**; zahteve se kontrolirano prekinejo s `timeout` |
+| **Samodejno okrevanje (*Recovery Time – RTO*)** | Čas od odmrznitve `backend_postgres` do vrnitve $p(50) < 20\text{ ms}$ in polne prepustnosti (~38 RPS) | **$\text{RTO} \le 10\text{ sekund}$** (samodejno okrevanje brez ponovnega zagona) |
+
+---
+
+### 6.6 Pripravljena testna skripta Locust (`naloga4/locustfile.py`)
+
+Spodnja skripta v jeziku Python implementira dolgotrajnega uporabnika `FixItNowSoakAndChaosUser` za izvajanje testa vzdržljivosti, skalabilnosti in okrevanja:
+
+```python
+import random
+from locust import HttpUser, task, between
+
+# Seznam predpripravljenih strank iz baze (seed_api.py, geslo: Password1!)
+SEED_USERS = [
+    "eva.znidaric@mail.si", "igor.kolar@mail.si", "alenka.breznik@mail.si",
+    "katja.mlakar@mail.si", "lea.vukovic@mail.si", "barbara.ferlinc@mail.si",
+    "petra.zagar@mail.si", "katja.gaberc@mail.si", "valter.novak@mail.si",
+    "janez.fras@mail.si", "sara.stuhec@mail.si", "helena.vukovic@mail.si",
+    "primoz.krajnc@mail.si", "karmen.majcen@mail.si", "ziva.meznaric@mail.si",
+    "ana.ferlinc@mail.si", "katja.vogel@mail.si", "lea.leskovec@mail.si",
+    "blaz.skorjanc@mail.si", "nina.veber@mail.si", "spela.planinc@mail.si",
+    "jure.potocnik@mail.si", "simona.skorjanc@mail.si", "valter.heric@mail.si",
+    "ziga.vukovic@mail.si", "marko.kokol@mail.si", "mateja.ferlinc@mail.si",
+    "ales.fras@mail.si", "dejan.oblak@mail.si", "miha.divjak@mail.si",
+]
+
+SEED_PASSWORD = "Password1!"
+CATEGORIES = [
+    "PLUMBING", "ELECTRICAL", "IT_SUPPORT", "CLEANING",
+    "CARPENTRY", "HVAC", "APPLIANCE_REPAIR", "PAINTING",
+]
+
+
+class FixItNowSoakAndChaosUser(HttpUser):
+    wait_time = between(1.0, 2.5)
+
+    def on_start(self):
+        self.email = random.choice(SEED_USERS)
+        self.access_token = None
+        self.refresh_token = None
+        self._authenticate()
+
+    def _authenticate(self):
+        payload = {"email": self.email, "password": SEED_PASSWORD}
+        with self.client.post(
+            "/api/v1/auth/login",
+            json=payload,
+            name="ST-A1: POST /api/v1/auth/login",
+            timeout=10.0,
+            catch_response=True,
+        ) as res:
+            if res.status_code == 200:
+                data = res.json()
+                self.access_token = data.get("accessToken")
+                self.refresh_token = data.get("refreshToken")
+                res.success() if self.access_token else res.failure("Manjka accessToken")
+            else:
+                res.failure(f"Prijava neuspešna (HTTP {res.status_code})")
+
+    def _auth_headers(self):
+        if not self.access_token:
+            self._authenticate()
+        return {"Authorization": f"Bearer {self.access_token}"} if self.access_token else {}
+
+    @task(4)
+    def browse_and_search_providers(self):
+        with self.client.get(
+            "/api/v1/public/stats",
+            name="ST-A2: GET /api/v1/public/stats",
+            timeout=8.0,
+            catch_response=True,
+        ) as stats_res:
+            stats_res.success() if stats_res.status_code == 200 else stats_res.failure(f"HTTP {stats_res.status_code}")
+
+        category = random.choice(CATEGORIES)
+        search_url = (
+            f"/api/v1/providers/search?category={category}&maxPrice=90"
+            f"&minExperience=1&latitude=46.5547&longitude=15.6459&radiusKm=35&page=0&size=12"
+        )
+        with self.client.get(
+            search_url,
+            name="ST-A2: GET /api/v1/providers/search",
+            timeout=8.0,
+            catch_response=True,
+        ) as search_res:
+            if search_res.status_code == 200 and isinstance(search_res.json().get("content"), list):
+                search_res.success()
+            else:
+                search_res.failure(f"HTTP {search_res.status_code}")
+
+    @task(3)
+    def check_dashboard_and_notifications(self):
+        headers = self._auth_headers()
+        if not headers:
+            return
+        with self.client.get(
+            "/api/notifications/unread-count",
+            headers=headers,
+            name="ST-A3: GET /api/notifications/unread-count",
+            timeout=8.0,
+            catch_response=True,
+        ) as notif_res:
+            notif_res.success() if notif_res.status_code == 200 else notif_res.failure(f"HTTP {notif_res.status_code}")
+
+        with self.client.get(
+            "/api/tickets",
+            headers=headers,
+            name="ST-A3: GET /api/tickets",
+            timeout=8.0,
+            catch_response=True,
+        ) as tickets_res:
+            tickets_res.success() if tickets_res.status_code == 200 else tickets_res.failure(f"HTTP {tickets_res.status_code}")
+
+    @task(2)
+    def create_service_ticket(self):
+        headers = self._auth_headers()
+        if not headers:
+            return
+        category = random.choice(CATEGORIES)
+        payload = {
+            "serviceType": f"Vzdrževalni pregled ({category})",
+            "category": category,
+            "description": "Preverjanje dolgotrajne vzdržljivosti sistema (Locust Soak Test).",
+            "priority": random.choice(["LOW", "MEDIUM", "HIGH"]),
+            "location": "Koroška cesta 46, 2000 Maribor",
+            "latitude": 46.5576,
+            "longitude": 15.6418,
+        }
+        with self.client.post(
+            "/api/tickets",
+            json=payload,
+            headers=headers,
+            name="ST-A4: POST /api/tickets",
+            timeout=10.0,
+            catch_response=True,
+        ) as create_res:
+            create_res.success() if create_res.status_code in (200, 201) else create_res.failure(f"HTTP {create_res.status_code}")
+
+    @task(1)
+    def verify_profile_and_session_health(self):
+        headers = self._auth_headers()
+        if not headers:
+            return
+        with self.client.get(
+            "/api/v1/users/me",
+            headers=headers,
+            name="ST-A1: GET /api/v1/users/me",
+            timeout=8.0,
+            catch_response=True,
+        ) as me_res:
+            me_res.success() if me_res.status_code == 200 else me_res.failure(f"HTTP {me_res.status_code}")
+```
+
+---
+
+## 7. Rezultati izvedenega sistemskega testiranja (Alan Labaš – Locust + Pumba)
+
+Testiranje smo izvedli z orodjem **Locust (`http://localhost:8089`)** in **Docker Chaos orodjem Pumba (`gaiaadm/pumba`)** nad delujočim zalednim strežnikom Spring Boot (`http://localhost:8080`) ter podatkovno bazo PostgreSQL 16 (`backend_postgres`). V celotnem testnem ciklu je bilo poslanih **14.487 HTTP zahtevkov** ter v bazo transakcijsko zapisanih **1.774 novih servisnih zahtevkov** (skupno število zahtevkov v tabeli `tickets` je naraslo s 100 na **1.868**).
+
+---
+
+### 7.1 Izvedba 1: Zagon, skalabilnost (*Ramp-up*) in dolgotrajno obremenjevanje (*Soak Testing*)
+
+V prvi fazi smo postopno zagnali **40 sočasnih uporabnikov** (s hitrostjo `5 uporabnikov/s`) in vzdrževali enakomerno obremenitev več minut.
+
+#### Posnetka zaslona 1 in 2: Začetna statistika ob zagonu in naraščanje obremenitve (Ramp-up v Locust UI)
+
+![Začetna statistika ob zagonu uporabnikov v Locustu](slike/locust_1_zagon_statistika.png)
+
+![Naraščanje števila uporabnikov (Ramp-up do 40 VUs) in prepustnosti](slike/locust_2_rampup_skalabilnost.png)
+
+#### Analiza skalabilnosti in zbirnih metrik po končnih točkah (celoten Soak + Chaos tek, 14.487 zahtevkov)
+
+Spodnja tabela prikazuje končne izmerjene metrike iz datoteke `naloga4/locust_rezultati_stats.csv` po zaključenem 7-minutnem teku:
+
+| Končna točka (Scenarij) | Št. klicev | Napake (samo med 25s Pumba izpadom) | Mediana $p(50)$ | 90. percentil $p(90)$ | 95. percentil $p(95)$ | 98. percentil $p(98)$ | Maksimum (`Max` ob Pumbi) | Povp. velikost odgovora | Prepustnost (`RPS`) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`POST /api/v1/auth/login`** (`ST-A1`) | 40 | **0 (0,00 %)** | **240 ms** | 260 ms | **260 ms** | 260 ms | 260 ms | 355 B | 0,10 req/s |
+| **`GET /api/v1/providers/search`** (`ST-A2`) | 3.347 | 14 *(0,42 %)* | **8 ms** | 11 ms | **13 ms** | 16 ms | 8.007 ms | 8.035 B | 8,32 req/s |
+| **`GET /api/v1/public/stats`** (`ST-A2`) | 3.347 | 17 *(0,51 %)* | **7 ms** | 10 ms | **12 ms** | 15 ms | 8.007 ms | 204 B | 8,32 req/s |
+| **`GET /api/notifications/unread-count`** (`ST-A3`) | 2.572 | 18 *(0,70 %)* | **4 ms** | 6 ms | **7 ms** | 10 ms | 8.008 ms | 11 B | 6,39 req/s |
+| **`GET /api/tickets`** (`ST-A3`) | 2.572 | 16 *(0,62 %)* | **13 ms** | 30 ms | **35 ms** | 41 ms | 8.008 ms | **21.941 B** | 6,39 req/s |
+| **`POST /api/tickets`** (`ST-A4`) | 1.774 | 11 *(0,62 %)* | **7 ms** | 11 ms | **13 ms** | 16 ms | 10.009 ms | 399 B | 4,41 req/s |
+| **`GET /api/v1/user/me`** *(test napačne poti)* | 835 | 835 *(HTTP 500)* | **10 ms** | 19 ms | **22 ms** | 27 ms | 8.006 ms | 96 B | 2,08 req/s |
+| **SKUPAJ (`Aggregated`)** | **14.487** | **76 timeout** *(+835 pot)* | **7 ms** | **15 ms** | **23 ms** | **35 ms** | **10.009 ms** | **5.856 B** | **36,00 req/s** |
+
+#### Preverjanje puščanja pomnilnika (*Memory Leaks*) in baznih povezav (*HikariCP*) med Soak testom
+
+Med izvajanjem testa vzdržljivosti smo z ukazoma `ps -o pid,rss,vsz,%cpu,%mem` in `pg_stat_activity` spremljali porabo virov procesa `BackendApplication` (PID `27233`) in stanje v bazi `backend_postgres`:
+
+| Trenutek meritve | Skupno št. zahtevkov | Poraba RAM – JVM RSS | Delež sistemskega RAM (`%MEM`) | Aktivne / proste povezave v PostgreSQL (`HikariCP`) | Št. zapisov v tabeli `tickets` | Povp. velikost odgovora `GET /api/tickets` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Začetek Soak testa (1. minuta)** | ~500 | **978 MB** (`978.432 KB`) | 3,8 % | `1 active` / `9 idle` (skupaj **10**) | ~150 | **1.708 B** (~1,7 KB) |
+| **Pred Pumba izpadom (4. minuta)** | 6.946 | **967 MB** (`990.544 KB`) | 3,9 % | `1 active` / `9 idle` (skupaj **10**) | ~980 | **12.047 B** (~12,0 KB) |
+| **5 s po okrevanju baze (5. minuta)** | 7.247 | **983 MB** (`1.007.008 KB`) | 4,0 % | `1 active` / `10 idle` (skupaj **11** z admin psql) | ~1.050 | **13.400 B** (~13,4 KB) |
+| **Ob koncu Soak testa (7. minuta)** | **14.487** | **1.000 MB** (`1.024.320 KB`) | **4,1 %** | `1 active` / `10 idle` (brez puščanja) | **1.868** | **21.941 B** (~21,9 KB) |
+
+---
+
+### 7.2 Izvedba 2: Chaos inženiring in testiranje okrevanja po izpadu baze (*Recovery Testing s Pumbo*)
+
+Ob `15:14:48` (medtem ko je 40 uporabnikov enakomerno obremenjevalo strežnik s ~38,5 req/s) smo v terminalu sprožili 25-sekundno zamrznitev zabojnika PostgreSQL:
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock gaiaadm/pumba pause --duration 25s backend_postgres
+```
+
+#### Posnetek zaslona 3: Celoten potek Soak testa, 25-sekundni izpad baze (Pumba) in samodejno okrevanje
+
+![Graf prepustnosti (RPS), odzivnih časov (p50/p95) in števila uporabnikov med Soak testom in Pumba izpadom](slike/locust_3_soak_in_pumba_recovery.png)
+
+Na zgornjem grafu iz spletnega vmesnika Locust so jasno vidne vse tri ključne faze:
+1. **Stabilna ravna črta pred izpadom (`15:12:00 – 15:14:48`):** Prepustnost (zelena črta) mirno teče pri **38–40 req/s**, odzivni časi $p(50)$ in $p(95)$ pa ležijo tik ob dnu grafa (**`7–20 ms`**).
+2. **Trenutek zamrznitve baze s Pumbo (`15:14:48 – 15:15:13`):**
+   - Zelena krivulja prepustnosti strmo pade v obliko črke **V** (z **38,7 req/s na 3,7 req/s**), rdeča črta napak (`Failures/s`) pa naraste do **6,7 napak/s**.
+   - Na srednjem grafu (*Response Times*) vidimo izrazito pravokotno stopnico: 50. percentil (oranžna črta) skoči na **8.000 ms**, 95. percentil (vijolična črta) pa na **10.000 ms** (zgornja meja `timeout` na odjemalcu).
+3. **Samodejno okrevanje po odmrznitvi (`15:15:13 – 15:16:30`):**
+   - Takoj ko Pumba ob `15:15:13` odmrzne zabojnik `backend_postgres`, oranžna črta mediane ($p(50)$) v **3 sekundah** pade z `8.000 ms` nazaj na **`17 ms`** (in nato na **`8 ms`**), zelena črta prepustnosti pa se povzpne nazaj na **38–40 req/s** in tam stabilno vztraja vse do konca testa!
+
+#### Natančna sekundna časovnica izpada in okrevanja (iz `locust_rezultati_stats_history.csv`)
+
+| Čas (`HH:MM:SS`) | Stanje infrastrukture (`backend_postgres`) | Sočasni uporabniki | Trenutni `RPS` | Trenutni `Failures/s` | Mediana $p(50)$ | 95. percentil $p(95)$ | 99. percentil $p(99)$ | Inženirska interpretacija dogajanja v sistemu |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| `15:14:46` | 🟢 Normalno delovanje (Soak) | 40 | **37,5** | 0,0 *(brez `/user/me`)* | **7 ms** | **18 ms** | 24 ms | Vseh 10 HikariCP povezav normalno obdeluje poizvedbe. |
+| `15:14:48` | 🔴 **ZAČETEK PUMBA PAUSE (25 s)** | 40 | **36,9** | 0,0 | **7 ms** | **20 ms** | 28 ms | Zabojnik PostgreSQL prejme `SIGSTOP`; aktivne poizvedbe obvisijo. |
+| `15:14:52` | 🔴 Baza zamrznjena (4 s) | 40 | **36,9** | 0,0 | **8 ms** | **22 ms** | 33 ms | Vseh 10 HikariCP povezav je zasedenih; nove niti čakajo v vrsti. |
+| `15:14:56` | 🔴 Baza zamrznjena (8 s) | 40 | **17,7** | 1,1 | **8 ms** | **8.000 ms** | 8.000 ms | Prvi bralni klici presežejo 8-sekundni odjemalski `timeout`. |
+| `15:14:58` | 🔴 Baza zamrznjena (10 s) | 40 | **10,7** | 0,6 | **8.000 ms** | **8.000 ms** | 10.000 ms | Tudi pisalni klici (`POST /api/tickets`) dosežejo 10-sekundni `timeout`. |
+| `15:15:08` | 🔴 Baza zamrznjena (20 s) | 40 | **6,7** | **6,7** | **8.000 ms** | **10.000 ms** | 10.000 ms | HikariCP doseže `connection-timeout = 20000 ms`; 100 % klicev pade. |
+| `15:15:13` | 🟡 **KONEC PUMBA PAUSE (Odmrznitev)** | 40 | **3,7** | 3,7 | **6.800 ms** | **8.000 ms** | 10.000 ms | Pumba pošlje `SIGCONT`; PostgreSQL obdela čakajoče TCP pakete. |
+| `15:15:15` | 🟢 Okrevanje (+2 s po izpadu) | 40 | **4,0** | 0,1 | **120 ms** | 8.000 ms | 10.000 ms | Čakalna vrsta v HikariCP se izprazni; mediana pade s 6.800 ms na 120 ms. |
+| `15:15:16` | 🟢 Okrevanje (+3 s po izpadu) | 40 | **10,1** | 0,0 | **17 ms** | 8.000 ms | 10.000 ms | Novi zahtevki se že izvajajo v **17 ms** brez ene same nove napake. |
+| `15:15:18` | 🟢 Okrevanje (+5 s po izpadu) | 40 | **12,7** | 0,0 | **10 ms** | 7.300 ms | 10.000 ms | Mediana je pri **10 ms**; vseh 10 HikariCP povezav je zdravih (`idle`). |
+| `15:15:23` | 🟢 **POLNO OKREVANJE (+10 s)** | 40 | **30,6** | 0,0 | **8 ms** | **21 ms** | **28 ms** | Tudi drseče okno $p(95)$ in $p(99)$ se vrne na normalnih 21 ms / 28 ms. |
+| `15:15:25` | 🟢 Stabilno delovanje (+12 s) | 40 | **37,8** | 0,0 | **8 ms** | **21 ms** | **28 ms** | Prepustnost je spet 100 % izenačena s stanjem pred izpadom. |
+
+---
+
+### 7.3 Presoja izpolnjevanja kriterijev uspešnosti (SLA) in ugotovljene pomanjkljivosti
+
+#### 7.3.1 Preverjanje zastavljenih SLA kriterijev
+
+1. **Odzivni časi pri dolgotrajni obremenitvi (Soak Test):** **PASSED ✓**
+   - Mediana vseh klicev je znašala **7 ms** (kriterij $< 50\text{ ms}$), 95. percentil pa **23 ms** (kriterij $< 250\text{ ms}$).
+2. **Odsotnost puščanja pomnilnika (*Memory Leak*):** **PASSED ✓**
+   - Po 14.487 obdelanih zahtevkih in 1.774 ustvarjenih zapisih v bazi se je poraba fizičnega pomnilnika JVM (`RSS`) spremenila le iz **978 MB na 1.000 MB** (`+2,2 %`, kar je znotraj meje $< 10\text{ %}$ in potrjuje pravilno delovanje čistilca pomnilnika *Garbage Collector*).
+3. **Stabilnost bazena povezav HikariCP (*Connection Pool Leak*):** **PASSED ✓**
+   - Bazen povezav je skozi celoten test (pred, med in po izpadu) ohranil natanko **10 povezav** (`1 active`, `9 idle`) brez zaostalih transakcij v stanju `idle in transaction`.
+4. **Preživetje izpada in čas okrevanja (*Recovery Time Objective – RTO*):** **PASSED ✓**
+   - Med 25-sekundno zamrznitvijo zabojnika PostgreSQL se proces Spring Boot ni sesul. Po odmrznitvi zabojnika je mediana odzivnega časa padla pod 20 ms v **3 sekundah** (`17 ms`), celoten sistem (vključno s $p(95) = 21\text{ ms}$ in polno prepustnostjo `37,8 req/s`) pa si je samodejno opomogel v **10 sekundah** (meja $\text{RTO} \le 10\text{ s}$).
+
+#### 7.3.2 Ključne inženirske ugotovitve in odkrite pomanjkljivosti v arhitekturi FixItNow
+
+Dolgotrajno testiranje vzdržljivosti (*Soak Testing*) in testiranje okrevanja (*Chaos Testing*) sta razkrila **tri pomembne arhitekturne ugotovitve**, ki jih pri običajnem kratkotrajnem testiranju ne bi opazili:
+
+1. **Ugotovitev 1 (Skalabilnost podatkov): Neomejena rast velikosti odgovora pri `GET /api/tickets` (manjkajoča paginacija):**
+   - Medtem ko endpoint `/api/v1/providers/search` uporablja paginacijo (`Page<ProviderResponse>`, stalna velikost odgovora ~8,0 KB), končna točka **`GET /api/tickets`** vrača nepaginiran seznam vseh zahtevkov stranke (`List<TicketResponse>`).
+   - Med 7-minutnim Soak testom, ko je 30 strank skupaj oddalo 1.774 novih zahtevkov (~59 zahtevkov na stranko), je povprečna velikost odgovora pri `GET /api/tickets` narasla z začetnih **1.708 B (1,7 KB)** na **21.941 B (21,9 KB)** — torej za kar **$12,8\times$**!
+   - Posledično se je mediana odzivnega časa te končne točke sčasoma podaljšala s **10 ms na 13 ms**, 95. percentil pa z **21 ms na 35 ms**. Pri večmesečni produkcijski uporabi bi to vodilo v nepotrebno obremenitev omrežja in pomnilnika JVM.
+   - **Priporočilo:** Uvesti strežniško paginacijo (`Pageable`, npr. `page=0&size=20`) tudi na končni točki `GET /api/tickets`.
+
+2. **Ugotovitev 2 (Odpornost in Chaos Engineering): Dolg čas čakanja niti ob izpadu baze (`connection-timeout = 20000 ms` brez *Circuit Breakerja*):**
+   - V `application.yml` je `spring.datasource.hikari.connection-timeout` nastavljen na **20.000 ms (20 sekund)**. Ko je Pumba zamrznila zabojnik PostgreSQL, so delovne niti strežnika Tomcat čakale do 20 sekund na prosto bazno povezavo, preden je HikariCP sprožil `SQLTransientConnectionException`.
+   - Pri daljšem izpadu baze in večjem prometu bi se na ta način zablokirale vse delovne niti strežnika Tomcat (tudi za končne točke, ki baze morda sploh ne potrebujejo).
+   - **Priporočilo:** Znižati `connection-timeout` v HikariCP na `5000 ms` (5 s) ter uvesti vzorec varovalke (**Circuit Breaker**, npr. *Resilience4j*), ki ob zaznanem izpadu baze takoj vrne status `503 Service Unavailable` (*Fail-Fast*), dokler baza ponovno ne postane dosegljiva.
+
+3. **Ugotovitev 3 (Obravnava napak REST API-ja): Vračanje statusa `500 Internal Server Error` namesto `404 Not Found` pri neobstoječih poteh:**
+   - Pri klicu napačne (edninske) poti `GET /api/v1/user/me` (namesto pravilne množinske poti `GET /api/v1/users/me` v `UserController`) zaledni strežnik Spring Boot sproži izjemo `NoResourceFoundException`, ki jo globalni upravljalnik izjem (`GlobalExceptionHandler`) ujame v splošni `@ExceptionHandler(Exception.class)` in odjemalcu vrne status **`500 Internal Server Error`** namesto pričakovanega **`404 Not Found`**.
+   - **Priporočilo:** V `GlobalExceptionHandler` dodati namenski `@ExceptionHandler(NoResourceFoundException.class)`, ki vrne pravilno kodo `404 Not Found`.
+
+---
+
+### 7.4 Uporaba orodij umetne inteligence (Alan Labaš)
+
+- **Uporabljeni model:** Gemini 4 Argon (v okolju Antigravity IDE).
+- **Obseg uporabe:**
+  1. Priprava testne skripte Locust (`naloga4/locustfile.py`) s sejami uporabnikov (`HttpUser`, `@task`) in integracijo testnih uporabnikov iz `seed_api.py`.
+- **Način verifikacije:** Vsi testi so bili dejansko izvedeni v spletnem vmesniku Locust (`http://localhost:8089`) in Docker okolju nad delujočo aplikacijo FixItNow, vse številke in posnetki zaslona pa izhajajo neposredno iz izvedenega testiranja.

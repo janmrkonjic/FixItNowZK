@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+POST,ST-A4: POST /api/tickets,CatchResponseError('HTTP 0'),11
+GET,ST-A2: GET /api/v1/public/stats,CatchResponseError('HTTP 0'),17
+GET,ST-A2: GET /api/v1/providers/search,CatchResponseError('HTTP 0'),14
+GET,ST-A1: GET /api/v1/user/me,CatchResponseError('HTTP 0'),4
+GET,ST-A1: GET /api/v1/user/me,CatchResponseError('HTTP 500'),831
+GET,ST-A3: GET /api/notifications/unread-count,CatchResponseError('HTTP 0'),18
+GET,ST-A3: GET /api/tickets,CatchResponseError('HTTP 0'),16
