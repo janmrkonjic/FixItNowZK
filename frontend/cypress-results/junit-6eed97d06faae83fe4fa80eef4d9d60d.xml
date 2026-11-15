@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="3.865" tests="1" failures="0">
+  <testsuite name="Root Suite" timestamp="2026-11-15T17:11:46" tests="0" file="cypress/e2e/ts09-admin-moderation.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="TS-09: Skrbniška nadzorna plošča — vloge, suspenz/reaktivacija in zahtevki" timestamp="2026-11-15T17:11:46" tests="1" time="3.863" failures="0">
+    <testcase name="TS-09: Skrbniška nadzorna plošča — vloge, suspenz/reaktivacija in zahtevki upravlja vloge, suspenz in reaktivacijo uporabnika ter posodobi in izbriše zahtevek" time="3.839" classname="upravlja vloge, suspenz in reaktivacijo uporabnika ter posodobi in izbriše zahtevek">
+    </testcase>
+  </testsuite>
+</testsuites>

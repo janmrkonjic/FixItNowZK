@@ -1,0 +1,52 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.example:backend >-------------------------
+[INFO] Building backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ backend ---
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO] Copying 26 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 167 source files with javac [debug parameters release 25] to target/classes
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Permit
+WARNING: Please consider reporting this to the maintainers of class lombok.permit.Permit
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[WARNING] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/domain/user/Provider.java:[89,21] @SuperBuilder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/domain/user/Provider.java:[93,21] @SuperBuilder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/service/ProviderSearchServiceImpl.java:[31,13] <T>where(org.springframework.data.jpa.domain.Specification<T>) in org.springframework.data.jpa.domain.Specification has been deprecated and marked for removal
+[INFO] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/config/ApplicationConfig.java: /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/config/ApplicationConfig.java uses or overrides a deprecated API.
+[INFO] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/main/java/com/example/backend/config/ApplicationConfig.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ backend ---
+[INFO] skip non existing resourceDirectory /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 27 source files with javac [debug parameters release 25] to target/test-classes
+[INFO] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/test/java/com/example/backend/service/ProviderSearchServiceImplTest.java: /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/test/java/com/example/backend/service/ProviderSearchServiceImplTest.java uses unchecked or unsafe operations.
+[INFO] /Users/alanlabas/Faks_3.Letnik/Zk/Vaje/FixItNowZK/backend/src/test/java/com/example/backend/service/ProviderSearchServiceImplTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.backend.common.IbanValidatorTest
+[INFO] Tests run: 45, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in com.example.backend.common.IbanValidatorTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 45, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.028 s
+[INFO] Finished at: 2026-10-20T12:05:57+02:00
+[INFO] ------------------------------------------------------------------------

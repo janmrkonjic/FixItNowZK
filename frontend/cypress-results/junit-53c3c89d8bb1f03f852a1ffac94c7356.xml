@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="5.746" tests="1" failures="0">
+  <testsuite name="Root Suite" timestamp="2026-11-15T17:12:49" tests="0" file="cypress/e2e/ts07-provider-calendar.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="TS-07: Upravljanje koledarja izvajalca in preverjanje kolizij" timestamp="2026-11-15T17:12:49" tests="1" time="5.745" failures="0">
+    <testcase name="TS-07: Upravljanje koledarja izvajalca in preverjanje kolizij ustvari, uredi in izbriše bloke ter prepreči dvojno rezervacijo termina" time="5.735" classname="ustvari, uredi in izbriše bloke ter prepreči dvojno rezervacijo termina">
+    </testcase>
+  </testsuite>
+</testsuites>

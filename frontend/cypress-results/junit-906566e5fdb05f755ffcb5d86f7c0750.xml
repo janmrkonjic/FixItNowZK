@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="11.351" tests="1" failures="1">
+  <testsuite name="Root Suite" timestamp="2026-11-15T17:12:10" tests="0" file="cypress/e2e/ts08-banking-iban-payouts.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="TS-08: Bančni podatki izvajalca (IBAN MOD-97), Stripe in pregled izplačil" timestamp="2026-11-15T17:12:10" tests="1" time="11.350" failures="1">
+    <testcase name="TS-08: Bančni podatki izvajalca (IBAN MOD-97), Stripe in pregled izplačil zavrne neveljaven IBAN, shrani veljavnega, poveže Stripe ter preveri prazna in neprazna izplačila" time="0.000" classname="zavrne neveljaven IBAN, shrani veljavnega, poveže Stripe ter preveri prazna in neprazna izplačila">
+      <failure message="Timed out retrying after 10000ms: Expected to find content: &apos;Invalid IBAN&apos; but never did." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Invalid IBAN' but never did.
+    at Context.eval (webpack://frontend/./cypress/e2e/ts08-banking-iban-payouts.cy.ts:23:32)]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

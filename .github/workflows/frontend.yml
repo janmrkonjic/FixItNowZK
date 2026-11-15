@@ -49,6 +49,19 @@ jobs:
             frontend/test-results/junit.xml
             frontend/test-results/results.json
 
+      - name: Run E2E tests (Cypress)
+        working-directory: frontend
+        run: npm run test:cypress:ci
+
+      - name: Upload Cypress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-report
+          path: |
+            frontend/cypress-results/
+            frontend/cypress/screenshots/
+
       - name: Build
         working-directory: frontend
         run: npm run build

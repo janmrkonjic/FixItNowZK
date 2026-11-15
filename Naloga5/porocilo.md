@@ -148,3 +148,68 @@ Po potrditvi zaznave smo namerno napako odstranili (povrnili `a.pricePerHour - b
 ## 6. Zaključek
 
 Avtomatizirano funkcionalno testiranje z orodjem **Playwright** je v projektu **FixItNow** uspešno vzpostavljeno. Testi pokrivajo ključne večkoračne uporabniške tokove, vključno z večbrskalniškimi scenariji v realnem času (WebSocket/STOMP, prenosi PDF, dinamični zemljevidi), se izvajajo v brezglavem načinu brez grafičnega vmesnika, generirajo standardizirana poročila (JUnit XML, JSON, HTML) za CI/CD ter zanesljivo zaznajo regresijske napake v aplikaciji.
+
+
+---
+
+# Del 2: Avtomatizirano funkcionalno testiranje — Cypress (Alan Labaš)
+
+## 1. Izbira in utemeljitev orodja
+
+Za avtomatizacijo testnih primerov `TS-07`, `TS-08` in `TS-09` na čelnem delu aplikacije (**React + TypeScript + Vite**) je bilo izbrano orodje **Cypress (`16.3.0`)**.
+
+Razlogi za izbiro:
+- **Naravna podpora za JavaScript/TypeScript in SPA ogrodja:** testi so napisani v TypeScriptu in tečejo neposredno v brskalniku ob aplikaciji.
+- **Samodejno čakanje (auto-retry):** Cypress samodejno počaka na pojavitev elementov in dokončanje omrežnih zahtev brez ročnih časovnih zakasnitev (`sleep`).
+- **Vgrajeno prestrezanje omrežja (`cy.intercept`):** omogoča deterministično simulacijo API klicev (`/api/v1/...`) in shranjevanje stanja v pomnilniku med testom, zato testi ne potrebujejo zunanje baze ali zalednega strežnika.
+
+## 2. Način vključitve v CI/CD cevovod
+
+Testi so vključeni v GitHub Actions delovni tok `.github/workflows/frontend.yml`:
+
+- **Izvajanje brez grafičnega vmesnika:** ukaz `npm run test:cypress:ci` (`start-server-and-test dev http://localhost:5173 test:cypress`) zažene `cypress run` v brezglavem (*headless*) načinu z vgrajenim brskalnikom **Electron**.
+- **Zahteve okolja v cevovodu:** `Node.js` (`v20`), `npm ci` (namestitev odvisnosti in binarnega paketa Cypress brez zunanjih brskalniških gonilnikov) ter zagnan razvojni strežnik Vite na `http://localhost:5173`. Zunanja testna baza ali zaledna storitev v CI ni potrebna, saj `frontend/cypress/support/mockApi.ts` prestreže API klice ter nastavi avtenticirano sejo v `localStorage`.
+- **Oblika rezultatov:** izpis v konzoli, strojno berljiva **JUnit XML** poročila v `frontend/cypress-results/junit-*.xml` ter posnetki zaslona ob napakah, ki se v cevovodu shranijo kot artefakt `cypress-report`.
+
+## 3. Avtomatizirani testni primeri
+
+| Testni primer | Datoteka | Opis preverjanega toka | Rezultat | Čas |
+| :--- | :--- | :--- | :---: | :---: |
+| **TS-07** | `cypress/e2e/ts07-provider-calendar.cy.ts` | Ustvarjanje enkratnega in ponavljajočega časovnega bloka (`+ Create`), urejanje, brisanje ter preverjanje kolizije ob dvojni rezervaciji termina. | ✅ Uspešen | 5 s |
+| **TS-08** | `cypress/e2e/ts08-banking-iban-payouts.cy.ts` | Zavrnitev neveljavnega IBAN-a po MOD-97 (`Invalid IBAN`), shranjevanje veljavnega IBAN-a, Stripe onboarding in pregled praznih ter nepraznih izplačil. | ✅ Uspešen | 4 s |
+| **TS-09** | `cypress/e2e/ts09-admin-moderation.cy.ts` | Sprememba vloge uporabnika, suspenz in reaktivacija uporabnika ter posodobitev in brisanje skrbniškega zahtevka. | ✅ Uspešen | 3 s |
+
+**Skupni rezultat (`npm run test:cypress:ci`):** `All specs passed! 3/3 (14s)`.
+
+![TS-07: Koledar izvajalca in bloki zasedenosti](slike/ts07-provider-calendar.png)
+
+![TS-08: Validacija IBAN po MOD-97](slike/ts08-iban-validation-error.png)
+
+![TS-08: Pregled izplačil izvajalca](slike/ts08-payouts-metka.png)
+
+![TS-09: Skrbniški suspenz uporabnika](slike/ts09-admin-users-suspended.png)
+
+![TS-09: Skrbniško urejanje zahtevkov](slike/ts09-admin-tickets-updated.png)
+
+## 4. Preverjanje zaznave namerne napake (Fault Injection)
+
+V datoteki `frontend/src/lib/iban.ts` (funkcija `isValidIban`) je bila namerno obrnjena kontrolna vsota MOD-97:
+
+```ts
+// Pravilna koda:
+return BigInt(numeric) % 97n === 1n;
+
+// Namerno vnesena napaka:
+return BigInt(numeric) % 97n !== 1n;
+```
+
+Ob ponovnem zagonu testa `TS-08` (`npx cypress run --spec cypress/e2e/ts08-banking-iban-payouts.cy.ts`) je Cypress napako takoj zaznal, saj obrazec neveljavnega IBAN-a ni več zavrnil:
+
+```text
+AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Invalid IBAN' but never did.
+    at Context.eval (webpack://frontend/./cypress/e2e/ts08-banking-iban-payouts.cy.ts:23:32)
+```
+
+![Zaznana namerna napaka v TS-08](slike/fault-injection-ts08.png)
+
+Po potrditvi zaznave je bila napaka odstranjena (`=== 1n`), ponovni zagon `npm run test:cypress:ci` pa je potrdil, da vsi 3 testi spet uspešno pretečejo (`3/3`, `00:14`).

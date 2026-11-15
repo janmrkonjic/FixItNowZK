@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "test:cypress": "cypress run",
+    "test:cypress:ci": "start-server-and-test dev http://localhost:5173 test:cypress",
+    "test:cypress:open": "cypress open"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
@@ -48,11 +51,13 @@
     "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.21",
+    "cypress": "^16.3.0",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "postcss": "^8.5.6",
+    "start-server-and-test": "^3.0.13",
     "tailwindcss": "^3.4.17",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
