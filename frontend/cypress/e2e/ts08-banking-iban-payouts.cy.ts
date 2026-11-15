@@ -21,7 +21,8 @@ describe('TS-08: Bančni podatki izvajalca (IBAN MOD-97), Stripe in pregled izpl
     cy.get('#p-bank-iban').should('be.visible').clear().type('DE89370400440532013001');
     cy.contains('button[type="submit"]', 'Save').click();
     cy.contains('Invalid IBAN').should('be.visible');
-    cy.screenshot('ts08-iban-validation-error');
+    cy.get('#p-bank-iban').scrollIntoView({ offset: { top: -220, left: 0 } });
+    cy.screenshot('ts08-iban-validation-error', { capture: 'viewport' });
 
     // Korak 2: Vnos veljavnega IBAN-a in shranjevanje
     cy.get('#p-bank-iban').clear().type('DE89370400440532013000');
