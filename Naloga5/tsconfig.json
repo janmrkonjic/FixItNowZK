@@ -1,0 +1,10 @@
+{
+  "extends": "../frontend/tsconfig.node.json",
+  "compilerOptions": {
+    "typeRoots": ["../frontend/node_modules/@types"],
+    "paths": {
+      "@playwright/test": ["../frontend/node_modules/@playwright/test"]
+    }
+  },
+  "include": ["playwright.config.ts", "e2e"]
+}

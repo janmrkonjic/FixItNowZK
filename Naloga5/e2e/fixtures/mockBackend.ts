@@ -427,7 +427,7 @@ export class MockBackend {
 
       ws.onMessage((message) => {
         const text = typeof message === 'string' ? message : message.toString('utf-8');
-        let frames: string[] = [];
+        let frames: string[];
         try {
           frames = JSON.parse(text) as string[];
         } catch {
@@ -465,7 +465,7 @@ export class MockBackend {
             const dest = destMatch ? destMatch[1].trim() : '';
             const bodyStart = rawFrame.indexOf('\n\n');
             const bodyRaw = bodyStart >= 0 ? rawFrame.slice(bodyStart + 2).replace(/\0$/, '') : '{}';
-            let payload: Record<string, unknown> = {};
+            let payload: Record<string, unknown>;
             try {
               payload = JSON.parse(bodyRaw) as Record<string, unknown>;
             } catch {
