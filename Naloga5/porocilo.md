@@ -213,3 +213,125 @@ AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Inv
 ![Zaznana namerna napaka v TS-08](slike/fault-injection-ts08.png)
 
 Po potrditvi zaznave je bila napaka odstranjena (`=== 1n`), ponovni zagon `npm run test:cypress:ci` pa je potrdil, da vsi 3 testi spet uspešno pretečejo (`3/3`, `00:14`).
+
+---
+
+# Del 3: Avtomatizirano funkcionalno testiranje — Playwright (Jan Mrkonjič)
+
+## 1. Izbira in utemeljitev orodja
+
+Za avtomatizacijo funkcionalnih testnih scenarijev **`TS-04`**, **`TS-05`** in **`TS-06`** iz Naloge 3 na spletnem odjemalcu **FixItNow** (**React 19 + TypeScript 6 + Vite 8**) je bilo izbrano orodje **Playwright (`@playwright/test` v1.64.1)**.
+
+### Utemeljitev izbire orodja Playwright za scenarije `TS-04`–`TS-06`:
+1. **Programsko nalaganje datotek iz pomnilnika (`locator.setInputFiles`):** Scenarij `TS-05` zahteva nalaganje fotografije okvare (PNG/JPEG/WebP) v komponento `dropzone` (`input[type="file"]`) ter preverjanje izrisa predogleda (`URL.createObjectURL`) in števca `1 selected` v kartici *Live summary*. Playwright omogoča neposredno podajanje binarnih datotek (`Buffer`) iz pomnilnika brez zunanjih vtičnikov.
+2. **Nativno obvladovanje večstopenjskih avtentikacijskih preusmeritev in stanja usmerjevalnika (`react-router-dom`):**
+   - V `TS-04` prijava z vklopljeno dvofaktorsko avtentikacijo (`POST /api/v1/auth/login` $\rightarrow$ `requiresTwoFactor: true`) shrani začasni žeton `tempToken` v avtentikacijski kontekst in preusmeri uporabnika na `/two-factor`, po potrditvi 6-mestne TOTP kode pa vzpostavi polno JWT sejo in preusmeri na `/profile`.
+   - V `TS-05` izbira izvajalca prek `/tickets/new` $\rightarrow$ `/providers` $\rightarrow$ `/tickets/new` prenaša stanje obrazca prek `routerLocation.state`. Playwright s samodejnim čakanjem (*auto-waiting*) zanesljivo sledi vsem navigacijam v SPA aplikaciji.
+3. **Deterministično prestrezanje omrežnega prometa (`context.route`):** Z razširitvijo razreda `MockBackend` (`frontend/e2e/fixtures/mockBackend.ts`) Playwright na ravni brskalniškega konteksta prestreže klice za registracijo, 2FA TOTP preverjanje, geokodiranje naslovov (`AddressAutocomplete`), nalaganje slik ter poslovno blokado mehkega izbrisa računa (`400 Bad Request` ob aktivnih zahtevkih v `TS-06`).
+
+---
+
+## 2. Predviden način vključitve v cevovod CI/CD
+
+Testi `TS-04`, `TS-05` in `TS-06` se izvajajo v sklopu obstoječega koraka **Playwright E2E** v delovnem toku GitHub Actions (`.github/workflows/frontend.yml`):
+
+- **Izvajanje brez grafičnega vmesnika (*Headless*):** V `frontend/playwright.config.ts` je nastavljeno `headless: true`, zato se brskalnik Chromium v cevovodu izvaja v brezglavem načinu brez grafičnega strežnika (X11/Wayland).
+- **Zahteve okolja v cevovodu:**
+  - `Node.js v20` in nameščene odvisnosti (`npm ci` v mapi `frontend/`).
+  - Brskalnik Chromium in sistemske odvisnosti (`npx playwright install --with-deps chromium`).
+  - Zagnan razvojni strežnik Vite na `http://localhost:5173` (Playwright ga samodejno zažene in nadzira prek nastavitve `webServer` v `playwright.config.ts`).
+  - Ločena baza PostgreSQL ali zaledni strežnik v CI/CD nista potrebna, ker `MockBackend` v celoti simulira zaledne REST končne točke in stanja zahtevkov.
+- **Oblika vrnjenih rezultatov:**
+  - **`list`** – sprotni izpis v konzoli CI/CD cevovoda.
+  - **`junit` (`frontend/test-results/junit.xml` / kopija v `Naloga5/results/junit.xml`)** – standardizirano XML poročilo o izvedenih testih (`TS-04`–`TS-06`).
+  - **`json` (`frontend/test-results/results.json` / kopija v `Naloga5/results/results.json`)** – strukturirano JSON poročilo z metrikami in trajanjem vsakega koraka.
+  - **`html` (`frontend/playwright-report/index.html` / kopija v `Naloga5/results/playwright-report.html`)** – interaktivno HTML poročilo, ki se v GitHub Actions shrani kot artefakt `playwright-report`.
+
+---
+
+## 3. Avtomatizirani testni primeri (`TS-04`–`TS-06`)
+
+V mapi `frontend/e2e/` (in kopije v `Naloga5/e2e/`) so bili implementirani naslednji trije avtomatizirani testni skripti:
+
+| Testni primer | Datoteka | Opis avtomatiziranega toka | Čas izvajanja | Status |
+| :--- | :--- | :--- | :---: | :---: |
+| **`TS-04`** | `e2e/ts04-auth-register-2fa.spec.ts` | Izbira vloge na `/register` (*01 I need things fixed*), preverjanje indikatorja moči gesla (`pw-meter s1` $\rightarrow$ `s4`) in validacije prekratkega gesla (`"Password must be at least 8 characters."`), preverjanje obveznega sprejetja pogojev uporabe, uspešna registracija stranke (`You're in!`), validacija prazne vloge izvajalca na `/register/provider`, oddaja popolne vloge izvajalca v 6 sekcijah (`Application submitted!`) ter prijava z 2FA TOTP (`/login` $\rightarrow$ `/two-factor`, zavrnitev 4-mestne kode `"1234"` in potrditev 6-mestne kode `"482910"` s preusmeritvijo na `/profile`). | 8.0 s | **PASSED** ✅ |
+| **`TS-05`** | `e2e/ts05-create-cancel-ticket.spec.ts` | Preverjanje validacije praznega obrazca na `/tickets/new` (5 obveznih polj), vnos naziva, kategorije `Electrical`, opisa in nalaganje PNG slike okvare s preverjanjem predogleda in števca `1 selected` v *Live summary*, izbira naslova iz `AddressAutocomplete` (`"Koroška cesta 46, 2000 Maribor, Slovenija"`, `"✓ Address pinned"`) in nujnosti `03 · High`, neposredna izbira izvajalca *Luka Kovač* prek `/providers` (`✓ Selected`), izbira prostega termina v `ProviderAvailabilityPicker`, oddaja zahtevka `FIX-0088` (`/tickets/88`) ter preklic zahtevka (`Cancel ticket` $\rightarrow$ `CANCELLED`, `2 events`). | 6.5 s | **PASSED** ✅ |
+| **`TS-06`** | `e2e/ts06-profile-locations-delete-account.spec.ts` | Pregled osebnega profila stranke na `/profile` (`Overview`, značka `VERIFIED`), dodajanje privzete lokacije v `LocationModal` (`"Slomškov trg 15, 2000 Maribor, Slovenija"` $\rightarrow$ `"Default location saved."`), posodobitev priimka in telefona na `/profile/edit` (`"Saved."`), validacija neujemajočih se gesel (`"Passwords do not match."`) in uspešna sprememba gesla (`"Password updated."`), preverjanje blokade mehkega izbrisa računa ob aktivnem zahtevku (`400 Bad Request` v *Danger zone*) ter uspešen mehki izbris računa z odjavo po zaključku aktivnih zahtevkov. | 4.5 s | **PASSED** ✅ |
+
+**Skupni rezultat končnega zagona (`TS-04` do `TS-06`):** `3 passed (19.0s)`.
+
+### 3.1 Posnetki zaslona uspešnih testov (`TS-04`–`TS-06`)
+
+- **`TS-04` – Validacija prekratkega gesla (`pw-meter s1`) ob registraciji stranke (`/register/user`):**
+
+![TS-04 Validacija moči gesla](slike/ts04-password-validation.png)
+
+- **`TS-04` – Uspešno oddana vloga izvajalca v čakanju na odobritev administratorja (`/register/provider`):**
+
+![TS-04 Oddana vloga izvajalca](slike/ts04-provider-application-submitted.png)
+
+- **`TS-04` – Preverjanje 2FA TOTP kode in validacija dolžine kode na `/two-factor`:**
+
+![TS-04 Preverjanje 2FA kode](slike/ts04-2fa-verify.png)
+
+- **`TS-05` – Validacija obveznih polj praznega zahtevka na `/tickets/new`:**
+
+![TS-05 Validacija praznega zahtevka](slike/ts05-empty-validation.png)
+
+- **`TS-05` – Izpolnjen zahtevek s fotografijo, pripeto lokacijo, izbranim izvajalcem *Luka Kovač* in terminom:**
+
+![TS-05 Izpolnjen zahtevek in izbran izvajalec](slike/ts05-filled-ticket-form.png)
+
+- **`TS-05` – Ustvarjen zahtevek `FIX-0088` v stanju `PENDING_APPROVAL` (`/tickets/88`):**
+
+![TS-05 Ustvarjen zahtevek FIX-0088](slike/ts05-ticket-created.png)
+
+- **`TS-05` – Zahtevek `FIX-0088` po preklicu s strani stranke (`CANCELLED`):**
+
+![TS-05 Preklican zahtevek FIX-0088](slike/ts05-ticket-cancelled.png)
+
+- **`TS-06` – Shranjena privzeta lokacija stavbe v razdelku *03 Buildings & locations* (`/profile`):**
+
+![TS-06 Shranjena privzeta lokacija](slike/ts06-profile-location-saved.png)
+
+- **`TS-06` – Urejen profil (`Saved.`) in validacija neujemajočih se gesel (`Passwords do not match.`) na `/profile/edit`:**
+
+![TS-06 Urejanje profila in validacija gesla](slike/ts06-edit-profile-password-mismatch.png)
+
+- **`TS-06` – Blokada mehkega izbrisa računa ob aktivnem zahtevku (*Danger zone – Delete Account*):**
+
+![TS-06 Blokiran izbris računa](slike/ts06-delete-account-blocked.png)
+
+---
+
+## 4. Preizkus zaznave namerno vnesene napake (*Fault Injection*)
+
+Za preverjanje zanesljivosti avtomatiziranih testov smo v datoteki `frontend/src/pages/RegisterUserPage.tsx` (vrstica 71) v validacijski shemi Zod namerno znižali zahtevano minimalno dolžino gesla z `8` na `3` znake:
+
+```ts
+// Prvotna (pravilna) koda:
+password: z.string().min(8, t("registerUser.passwordMinLength")),
+
+// Namerno vnesena napaka:
+password: z.string().min(3, t("registerUser.passwordMinLength")),
+```
+
+Ob ponovnem zagonu testa `TS-04` (`npx playwright test e2e/ts04-auth-register-2fa.spec.ts`) je skripta napako takoj zaznala. V 2. koraku je obrazec namesto zavrnitve prekratkega 5-mestnega gesla (`"abc12"`) dovolil oddajo registracije in prešel na zaslon `"You're in!"`, zaradi česar je test padel na trditvi, ki pričakuje izpis validacijske napake `"Password must be at least 8 characters."`:
+
+```text
+  1) [chromium] › e2e\ts04-auth-register-2fa.spec.ts:8:3 › TS-04: Registracija uporabnika/izvajalca, preverjanje moči gesla ter prijava z 2FA TOTP
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Password must be at least 8 characters.')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+```
+
+Posnetek zaslona ob zaznani napaki (obrazec je zaradi okvarjene validacije sprejel prekratko geslo `"abc12"` in prikazal potrditveni zaslon *You're in!*):
+
+![Zaznana namerna napaka v TS-04](slike/fault-injection-ts04.png)
+
+Po potrditvi zaznave smo namerno napako odstranili (povrnili `.min(8, ...)`) in ponovno pognali naše tri testne scenarije (`TS-04`–`TS-06`), pri čemer so vsi 3 testi ponovno uspešno prestali preizkus (`3 passed`, `19.0s`).
+

@@ -2,11 +2,11 @@
   "config": {
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
-      "C:\\Users\\Luka1\\Desktop\\feri\\zagotavljanje kakovosti\\fork\\frontend\\node_modules\\@playwright\\test\\cli.js",
+      "C:\\Dokumenti\\FERI\\3. letnik\\1. semester\\Zagotavljanje kakovosti\\FixItNowZK\\frontend\\node_modules\\@playwright\\test\\cli.js",
       "test"
     ],
-    "configFile": "C:\\Users\\Luka1\\Desktop\\feri\\zagotavljanje kakovosti\\fork\\frontend\\playwright.config.ts",
-    "rootDir": "C:/Users/Luka1/Desktop/feri/zagotavljanje kakovosti/fork/frontend/e2e",
+    "configFile": "C:\\Dokumenti\\FERI\\3. letnik\\1. semester\\Zagotavljanje kakovosti\\FixItNowZK\\frontend\\playwright.config.ts",
+    "rootDir": "C:/Dokumenti/FERI/3. letnik/1. semester/Zagotavljanje kakovosti/FixItNowZK/frontend/e2e",
     "failOnFlakyTests": false,
     "forbidOnly": false,
     "fullyParallel": false,
@@ -22,7 +22,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "C:/Users/Luka1/Desktop/feri/zagotavljanje kakovosti/fork/frontend/test-results",
+        "outputDir": "C:/Dokumenti/FERI/3. letnik/1. semester/Zagotavljanje kakovosti/FixItNowZK/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -30,7 +30,7 @@
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "C:/Users/Luka1/Desktop/feri/zagotavljanje kakovosti/fork/frontend/e2e",
+        "testDir": "C:/Dokumenti/FERI/3. letnik/1. semester/Zagotavljanje kakovosti/FixItNowZK/frontend/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -42,15 +42,15 @@
       {
         "grep": {},
         "grepInvert": null,
-        "outputDir": "C:\\Users\\Luka1\\Desktop\\feri\\zagotavljanje kakovosti\\fork\\frontend\\test-results",
+        "outputDir": "C:\\Dokumenti\\FERI\\3. letnik\\1. semester\\Zagotavljanje kakovosti\\FixItNowZK\\frontend\\test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
           "actualWorkers": 1
         },
         "name": "chromium",
-        "testDir": "C:\\Users\\Luka1\\Desktop\\feri\\zagotavljanje kakovosti\\fork\\frontend\\e2e",
-        "snapshotDir": "C:\\Users\\Luka1\\Desktop\\feri\\zagotavljanje kakovosti\\fork\\frontend\\e2e",
+        "testDir": "C:\\Dokumenti\\FERI\\3. letnik\\1. semester\\Zagotavljanje kakovosti\\FixItNowZK\\frontend\\e2e",
+        "snapshotDir": "C:\\Dokumenti\\FERI\\3. letnik\\1. semester\\Zagotavljanje kakovosti\\FixItNowZK\\frontend\\e2e",
         "testIgnore": [],
         "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
         "timeout": 45000,
@@ -153,12 +153,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 11400,
+                      "duration": 8415,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-13T08:30:28.137Z",
+                      "startTime": "2026-11-16T12:51:35.603Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -204,12 +204,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4792,
+                      "duration": 9352,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-13T08:30:39.938Z",
+                      "startTime": "2026-11-16T12:51:44.421Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -255,12 +255,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2903,
+                      "duration": 6220,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-13T08:30:44.762Z",
+                      "startTime": "2026-11-16T12:51:53.811Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -276,13 +276,166 @@
           ]
         }
       ]
+    },
+    {
+      "title": "ts04-auth-register-2fa.spec.ts",
+      "file": "ts04-auth-register-2fa.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "TS-04: Registracija uporabnika/izvajalca, preverjanje moči gesla ter prijava z 2FA TOTP",
+          "file": "ts04-auth-register-2fa.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "izvede izbiro vloge, validacijo gesla in pogojev uporabe, registracijo stranke in izvajalca ter prijavo z 2FA TOTP kodo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8032,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-16T12:52:00.068Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6945a8f0935dd0144936-612589fd68a9bff8f2bd",
+              "file": "ts04-auth-register-2fa.spec.ts",
+              "line": 8,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "ts05-create-cancel-ticket.spec.ts",
+      "file": "ts05-create-cancel-ticket.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "TS-05: Ustvarjanje novega zahtevka z validacijo polj, sliko, izbiro izvajalca ter preklic zahtevka",
+          "file": "ts05-create-cancel-ticket.spec.ts",
+          "line": 13,
+          "column": 6,
+          "specs": [
+            {
+              "title": "preveri validacijo praznega obrazca, izpolni zahtevek s sliko, lokacijo, izvajalcem in terminom ter prekliče ustvarjeni zahtevek FIX-0088",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6500,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-16T12:52:08.137Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7e2b96eae2b1a80f6234-62e940c09b6aef086deb",
+              "file": "ts05-create-cancel-ticket.spec.ts",
+              "line": 14,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "ts06-profile-locations-delete-account.spec.ts",
+      "file": "ts06-profile-locations-delete-account.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "TS-06: Upravljanje uporabniškega profila, dodajanje lokacij, sprememba gesla in mehki izbris računa",
+          "file": "ts06-profile-locations-delete-account.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "pregleduje profil, doda privzeto lokacijo, posodobi osebne podatke in geslo ter preveri blokado in izvedbo mehkega izbrisa računa",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4488,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-16T12:52:14.670Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d48e298930dd093d385f-585fc2a05b6aa8dcd7af",
+              "file": "ts06-profile-locations-delete-account.spec.ts",
+              "line": 9,
+              "column": 3
+            }
+          ]
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T08:30:24.203Z",
-    "duration": 23973.823,
-    "expected": 3,
+    "startTime": "2026-11-16T12:51:31.322Z",
+    "duration": 48936.054,
+    "expected": 6,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

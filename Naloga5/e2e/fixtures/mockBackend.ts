@@ -17,6 +17,49 @@ export const CUSTOMER_USER = {
   },
 };
 
+export const CUSTOMER_JAN = {
+  id: 'cust-jan-001',
+  email: 'jan.test@fixitnow.si',
+  firstName: 'Jan',
+  lastName: 'Mrkonjič',
+  emailVerified: true,
+  profilePictureUrl: null as string | null,
+  phoneNumber: '+386 41 555 123',
+  createdAt: '2026-10-15T10:00:00Z',
+  notificationPreferences: {},
+  location: null as {
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null,
+};
+
+export const PROVIDER_LUKA = {
+  id: 'prov-luka-006',
+  email: 'luka.kovac@fixitnow.si',
+  firstName: 'Luka',
+  lastName: 'Kovač',
+  phoneNumber: '+386 40 777 888',
+  locationStreetName: 'Koroška cesta',
+  locationStreetNumber: '46',
+  locationCity: 'Maribor',
+  locationPostalCode: '2000',
+  locationCountry: 'Slovenia',
+  locationLat: 46.5594,
+  locationLon: 15.6368,
+  pricePerHour: 55,
+  yearsOfExperience: 7,
+  serviceRadiusKm: 30,
+  categories: ['ELECTRICAL', 'IT_SUPPORT'],
+  bio: 'Pooblaščeni elektroinštalater za razdelilne omarice, varovalke in hišne inštalacije.',
+  profilePictureUrl: null,
+  status: 'ACTIVE',
+  createdAt: '2026-09-26T08:00:00Z',
+  approvedAt: '2026-09-27T08:00:00Z',
+  emailVerified: true,
+  distanceKm: 1.2,
+};
+
 export const PROVIDER_MATEJ = {
   id: 'prov-matej-001',
   email: 'matej.novak@fixitnow.si',
@@ -137,6 +180,7 @@ export const ALL_PROVIDERS = [
     emailVerified: true,
     distanceKm: 4.2,
   },
+  PROVIDER_LUKA,
 ];
 
 function createJwt(payload: {
@@ -193,6 +237,26 @@ export async function authenticateContext(
   }, session);
 }
 
+export async function authenticateJanContext(context: BrowserContext) {
+  const session = {
+    accessToken: createJwt({
+      sub: CUSTOMER_JAN.email,
+      role: 'CUSTOMER',
+      firstName: CUSTOMER_JAN.firstName,
+      lastName: CUSTOMER_JAN.lastName,
+    }),
+    refreshToken: 'refresh-token-jan',
+    tempToken: '',
+    role: 'CUSTOMER',
+  };
+
+  await context.addInitScript((sessionData) => {
+    window.localStorage.setItem('frontend.auth.persistent', 'true');
+    window.localStorage.setItem('frontend.auth.session', JSON.stringify(sessionData));
+    window.localStorage.setItem('i18nextLng', 'en');
+  }, session);
+}
+
 interface StompSub {
   destination: string;
   subId: string;
@@ -202,6 +266,9 @@ interface StompSub {
 export class MockBackend {
   savedProviderIds = new Set<string>();
   ticket42: Record<string, unknown>;
+  ticket88: Record<string, unknown> | null = null;
+  janUser = { ...CUSTOMER_JAN };
+  janHasActiveTickets = true;
   reviews: Array<{
     id: string;
     providerId: string;
@@ -514,6 +581,108 @@ export class MockBackend {
         });
       }
 
+      // Public platform stats
+      if (path === '/api/v1/public/stats' && method === 'GET') {
+        return json({
+          activeProvidersCount: 48,
+          averageRating: 4.85,
+          medianResponseMinutes: 14,
+          averageHourlyRate: 48,
+          platformFeePercent: 8,
+        });
+      }
+
+      // Auth registration, login & 2FA verification (TS-04)
+      if (path === '/api/v1/auth/register' && method === 'POST') {
+        return json({ message: 'User registered successfully.' }, 201);
+      }
+
+      if (path === '/api/v1/auth/register/provider' && method === 'POST') {
+        return json({ message: 'Provider application submitted.' }, 201);
+      }
+
+      if (path === '/api/v1/auth/login' && method === 'POST') {
+        const body = JSON.parse(req.postData() ?? '{}') as {
+          email?: string;
+          password?: string;
+        };
+        if (body.email === CUSTOMER_JAN.email) {
+          return json({
+            accessToken: '',
+            refreshToken: '',
+            tokenType: 'Bearer',
+            role: 'CUSTOMER',
+            requiresTwoFactor: true,
+            tempToken: 'temp-2fa-token-jan-001',
+          });
+        }
+        return json({
+          accessToken: createJwt({
+            sub: CUSTOMER_USER.email,
+            role: 'CUSTOMER',
+            firstName: CUSTOMER_USER.firstName,
+            lastName: CUSTOMER_USER.lastName,
+          }),
+          refreshToken: 'refresh-token-customer',
+          tokenType: 'Bearer',
+          role: 'CUSTOMER',
+          requiresTwoFactor: false,
+          tempToken: '',
+        });
+      }
+
+      if (path === '/api/v1/auth/2fa/verify' && method === 'POST') {
+        const body = JSON.parse(req.postData() ?? '{}') as {
+          tempToken?: string;
+          code?: string;
+        };
+        if (body.code === '482910') {
+          return json({
+            accessToken: createJwt({
+              sub: this.janUser.email,
+              role: 'CUSTOMER',
+              firstName: this.janUser.firstName,
+              lastName: this.janUser.lastName,
+            }),
+            refreshToken: 'refresh-token-jan',
+            tokenType: 'Bearer',
+            role: 'CUSTOMER',
+            requiresTwoFactor: false,
+            tempToken: '',
+          });
+        }
+        return json({ message: 'Invalid 2FA verification code.' }, 400);
+      }
+
+      // Geocode autocomplete (TS-05 & TS-06)
+      if (path === '/api/v1/geocode/search' && method === 'GET') {
+        const q = (url.searchParams.get('q') ?? '').toLowerCase();
+        if (q.includes('slom')) {
+          return json([
+            {
+              displayName: 'Slomškov trg 15, 2000 Maribor, Slovenija',
+              lat: 46.5592,
+              lng: 15.6448,
+            },
+          ]);
+        }
+        return json([
+          {
+            displayName: 'Koroška cesta 46, 2000 Maribor, Slovenija',
+            lat: 46.5594,
+            lng: 15.6368,
+          },
+        ]);
+      }
+
+      // Image upload (TS-05)
+      if (path === '/api/v1/images/upload' && method === 'POST') {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#1e293b"/><rect x="40" y="30" width="240" height="180" rx="8" fill="#334155" stroke="#94a3b8" stroke-width="3"/><rect x="70" y="65" width="45" height="90" rx="4" fill="#0f172a"/><rect x="135" y="65" width="45" height="90" rx="4" fill="#ef4444"/><rect x="200" y="65" width="45" height="90" rx="4" fill="#0f172a"/><text x="160" y="192" text-anchor="middle" fill="#f8fafc" font-family="monospace" font-size="14">FAULT: FUSE B16</text></svg>`;
+        return json({
+          url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+        });
+      }
+
       // Auth & Current User / Provider
       if (path === '/api/v1/users/me' && method === 'GET') {
         const auth = req.headers()['authorization'] ?? '';
@@ -531,7 +700,65 @@ export class MockBackend {
             location: null,
           });
         }
+        if (this.isJanToken(auth)) {
+          return json(this.janUser);
+        }
         return json(CUSTOMER_USER);
+      }
+
+      if (path === '/api/v1/users/me' && method === 'PATCH') {
+        const body = JSON.parse(req.postData() ?? '{}') as {
+          firstName?: string;
+          lastName?: string;
+          phoneNumber?: string | null;
+        };
+        this.janUser = {
+          ...this.janUser,
+          firstName: body.firstName ?? this.janUser.firstName,
+          lastName: body.lastName ?? this.janUser.lastName,
+          phoneNumber:
+            body.phoneNumber !== undefined ? (body.phoneNumber ?? '') : this.janUser.phoneNumber,
+        };
+        return json(this.janUser);
+      }
+
+      if (path === '/api/v1/users/me/location' && method === 'PATCH') {
+        const body = JSON.parse(req.postData() ?? '{}') as {
+          address: string;
+          latitude?: number | null;
+          longitude?: number | null;
+        };
+        this.janUser = {
+          ...this.janUser,
+          location: {
+            address: body.address,
+            latitude: body.latitude ?? 46.5592,
+            longitude: body.longitude ?? 15.6448,
+          },
+        };
+        return json(this.janUser);
+      }
+
+      if (path === '/api/v1/users/me/location' && method === 'DELETE') {
+        this.janUser = { ...this.janUser, location: null };
+        return json(this.janUser);
+      }
+
+      if (path === '/api/v1/users/me/password' && method === 'PATCH') {
+        return json({ message: 'Password updated successfully.' });
+      }
+
+      if (path === '/api/v1/users/me' && method === 'DELETE') {
+        if (this.janHasActiveTickets) {
+          return json(
+            {
+              message:
+                'You cannot delete your account while you have active tickets, disputes, or pending payments.',
+            },
+            400,
+          );
+        }
+        return json({ message: 'Account deleted successfully.' });
       }
 
       if (path === '/api/v1/providers/me' && method === 'GET') {
@@ -664,6 +891,36 @@ export class MockBackend {
 
       const calMatch = path.match(/^\/api\/v1\/providers\/([^/]+)\/calendar$/);
       if (calMatch && method === 'GET') {
+        const provId = calMatch[1];
+        if (provId === PROVIDER_LUKA.id) {
+          const now = new Date();
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const fmtIso = (d: Date) =>
+            `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
+          // Pick tomorrow 10:00–14:00 (or today if today is Sunday so it stays in the current Mon–Sun week)
+          const slotDay = new Date(now);
+          if (now.getDay() !== 0) {
+            slotDay.setDate(slotDay.getDate() + 1);
+          }
+          const start = new Date(slotDay);
+          start.setHours(10, 0, 0, 0);
+          const end = new Date(slotDay);
+          end.setHours(14, 0, 0, 0);
+          if (end.getTime() <= now.getTime() + 30 * 60 * 1000) {
+            start.setHours(20, 0, 0, 0);
+            end.setHours(23, 30, 0, 0);
+          }
+
+          return json([
+            {
+              startAt: fmtIso(start),
+              endAt: fmtIso(end),
+              type: 'AVAILABLE',
+              label: 'Available',
+            },
+          ]);
+        }
         return json([]);
       }
 
@@ -676,7 +933,71 @@ export class MockBackend {
 
       // Tickets
       if (path === '/api/tickets' && method === 'GET') {
+        const auth = req.headers()['authorization'] ?? '';
+        if (this.isJanToken(auth)) {
+          return json(this.ticket88 ? [this.ticket88] : []);
+        }
         return json([this.ticket42]);
+      }
+
+      if (path === '/api/tickets' && method === 'POST') {
+        const body = JSON.parse(req.postData() ?? '{}') as {
+          serviceType?: string;
+          category?: string;
+          description?: string;
+          location?: string;
+          priority?: string;
+          assignedProviderId?: string | null;
+          requestedStartAt?: string | null;
+          requestedEndAt?: string | null;
+          imageUrls?: string[];
+        };
+        const nowIso = new Date().toISOString();
+        this.ticket88 = {
+          id: 88,
+          serviceType: body.serviceType ?? 'Menjava okvarjene varovalke v razdelilni omarici',
+          category: body.category ?? 'ELECTRICAL',
+          description:
+            body.description ??
+            'Glavna varovalka v kuhinjskem tokokrogu se ob vklopu pečice sproži, potrebna menjava in pregled napeljave.',
+          location: body.location ?? 'Koroška cesta 46, 2000 Maribor, Slovenija',
+          status: 'PENDING_APPROVAL',
+          priority: body.priority ?? 'HIGH',
+          estimatedCost: null,
+          createdAt: nowIso,
+          assignedServiceProviderName: 'Luka Kovač',
+          assignedServiceProviderId: body.assignedProviderId ?? PROVIDER_LUKA.id,
+          assignedServiceProviderProfilePictureUrl: null,
+          submittedByName: `${this.janUser.firstName} ${this.janUser.lastName}`,
+          submittedById: this.janUser.id,
+          submittedByProfilePictureUrl: null,
+          customerPhoneNumber: this.janUser.phoneNumber,
+          chatRoomId: 'room-fix-0088',
+          requestedStartAt: body.requestedStartAt ?? null,
+          requestedEndAt: body.requestedEndAt ?? null,
+          statusHistory: [{ status: 'PENDING_APPROVAL', changedAt: nowIso }],
+          imageUrls: body.imageUrls ?? [],
+        };
+        return json(this.ticket88, 201);
+      }
+
+      if (path === '/api/tickets/88' && method === 'GET') {
+        if (this.ticket88) {
+          return json(this.ticket88);
+        }
+        return json({ message: 'Ticket not found' }, 404);
+      }
+
+      if (path === '/api/tickets/88/cancel' && method === 'POST') {
+        if (this.ticket88) {
+          this.ticket88.status = 'CANCELLED';
+          const history =
+            (this.ticket88.statusHistory as Array<{ status: string; changedAt: string }>) ?? [];
+          history.push({ status: 'CANCELLED', changedAt: new Date().toISOString() });
+          this.ticket88.statusHistory = history;
+          return json(this.ticket88);
+        }
+        return json({ message: 'Ticket not found' }, 404);
       }
       if (path === '/api/tickets/provider' && method === 'GET') {
         return json([this.ticket42]);
@@ -767,6 +1088,19 @@ export class MockBackend {
         return json(this.chatMessages);
       }
 
+      if (path === '/api/chat/room-fix-0088' && method === 'GET') {
+        return json({
+          id: 'room-fix-0088',
+          ticketId: 88,
+          customerId: CUSTOMER_JAN.id,
+          providerId: PROVIDER_LUKA.id,
+        });
+      }
+
+      if (path === '/api/chat/room-fix-0088/messages' && method === 'GET') {
+        return json([]);
+      }
+
       // Notifications endpoints
       if (path === '/api/notifications' && method === 'GET') {
         const userId = this.resolveUserIdFromHeader(req.headers()['authorization']);
@@ -831,8 +1165,23 @@ export class MockBackend {
     }
   }
 
+  private isJanToken(authHeader?: string): boolean {
+    if (!authHeader) return false;
+    try {
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const payload = JSON.parse(
+        Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf-8'),
+      ) as { sub?: string };
+      return payload.sub === CUSTOMER_JAN.email;
+    } catch {
+      return false;
+    }
+  }
+
   private resolveUserIdFromHeader(authHeader?: string): string {
-    return this.isProviderToken(authHeader) ? PROVIDER_MATEJ.id : CUSTOMER_USER.id;
+    if (this.isProviderToken(authHeader)) return PROVIDER_MATEJ.id;
+    if (this.isJanToken(authHeader)) return CUSTOMER_JAN.id;
+    return CUSTOMER_USER.id;
   }
 }
 

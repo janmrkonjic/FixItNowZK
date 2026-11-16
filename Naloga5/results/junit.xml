@@ -1,14 +1,26 @@
-<testsuites id="" name="" tests="3" failures="0" skipped="0" errors="0" time="23.973823">
-<testsuite name="ts01-browse-saved-providers.spec.ts" timestamp="2026-11-13T08:30:27.790Z" hostname="chromium" tests="1" failures="0" skipped="0" time="11.4" errors="0">
-<testcase name="TS-01: Večkriterijsko iskanje mojstrov, zemljevid in priljubljeni mojstri (Saved Providers) › izvede celoten tok iskanja, filtriranja, razvrščanja, prikaza zemljevida ter shranjevanja in odstranjevanja mojstra" classname="ts01-browse-saved-providers.spec.ts" time="11.4">
+<testsuites id="" name="" tests="6" failures="0" skipped="0" errors="0" time="48.936054">
+<testsuite name="ts01-browse-saved-providers.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="8.415" errors="0">
+<testcase name="TS-01: Večkriterijsko iskanje mojstrov, zemljevid in priljubljeni mojstri (Saved Providers) › izvede celoten tok iskanja, filtriranja, razvrščanja, prikaza zemljevida ter shranjevanja in odstranjevanja mojstra" classname="ts01-browse-saved-providers.spec.ts" time="8.415">
 </testcase>
 </testsuite>
-<testsuite name="ts02-ticket-lifecycle-reviews.spec.ts" timestamp="2026-11-13T08:30:27.790Z" hostname="chromium" tests="1" failures="0" skipped="0" time="4.792" errors="0">
-<testcase name="TS-02: Življenjski cikel naročila, izdaja računa, PDF prenos in oddaja ocene › izvede celoten življenjski cikel zahtevka FIX-0042 med naročnikom in mojstrom ter upravljanje ocen" classname="ts02-ticket-lifecycle-reviews.spec.ts" time="4.792">
+<testsuite name="ts02-ticket-lifecycle-reviews.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="9.352" errors="0">
+<testcase name="TS-02: Življenjski cikel naročila, izdaja računa, PDF prenos in oddaja ocene › izvede celoten življenjski cikel zahtevka FIX-0042 med naročnikom in mojstrom ter upravljanje ocen" classname="ts02-ticket-lifecycle-reviews.spec.ts" time="9.352">
 </testcase>
 </testsuite>
-<testsuite name="ts03-realtime-chat-notifications.spec.ts" timestamp="2026-11-13T08:30:27.790Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.903" errors="0">
-<testcase name="TS-03: Klepet v realnem času (WebSocket/STOMP), urejanje sporočil in obvestila › izvede dvosmerni klepet v živo, urejanje in brisanje sporočil ter upravljanje obvestil" classname="ts03-realtime-chat-notifications.spec.ts" time="2.903">
+<testsuite name="ts03-realtime-chat-notifications.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="6.22" errors="0">
+<testcase name="TS-03: Klepet v realnem času (WebSocket/STOMP), urejanje sporočil in obvestila › izvede dvosmerni klepet v živo, urejanje in brisanje sporočil ter upravljanje obvestil" classname="ts03-realtime-chat-notifications.spec.ts" time="6.22">
+</testcase>
+</testsuite>
+<testsuite name="ts04-auth-register-2fa.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="8.032" errors="0">
+<testcase name="TS-04: Registracija uporabnika/izvajalca, preverjanje moči gesla ter prijava z 2FA TOTP › izvede izbiro vloge, validacijo gesla in pogojev uporabe, registracijo stranke in izvajalca ter prijavo z 2FA TOTP kodo" classname="ts04-auth-register-2fa.spec.ts" time="8.032">
+</testcase>
+</testsuite>
+<testsuite name="ts05-create-cancel-ticket.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="6.5" errors="0">
+<testcase name="TS-05: Ustvarjanje novega zahtevka z validacijo polj, sliko, izbiro izvajalca ter preklic zahtevka › preveri validacijo praznega obrazca, izpolni zahtevek s sliko, lokacijo, izvajalcem in terminom ter prekliče ustvarjeni zahtevek FIX-0088" classname="ts05-create-cancel-ticket.spec.ts" time="6.5">
+</testcase>
+</testsuite>
+<testsuite name="ts06-profile-locations-delete-account.spec.ts" timestamp="2026-11-16T12:51:34.562Z" hostname="chromium" tests="1" failures="0" skipped="0" time="4.488" errors="0">
+<testcase name="TS-06: Upravljanje uporabniškega profila, dodajanje lokacij, sprememba gesla in mehki izbris računa › pregleduje profil, doda privzeto lokacijo, posodobi osebne podatke in geslo ter preveri blokado in izvedbo mehkega izbrisa računa" classname="ts06-profile-locations-delete-account.spec.ts" time="4.488">
 </testcase>
 </testsuite>
 </testsuites>
