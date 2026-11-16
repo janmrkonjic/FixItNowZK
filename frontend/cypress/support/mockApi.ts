@@ -302,6 +302,13 @@ function addDaysToLocalIso(iso: string, days: number): string {
 }
 
 export function setupMockApi(state: MockState) {
+  // SockJS / WebSocket fallback (avoid connection-refused noise when backend is offline)
+  cy.intercept('**/ws/**', { statusCode: 200, body: '' });
+  cy.intercept('GET', '**/ws/info*', {
+    statusCode: 200,
+    body: { websocket: false, origins: ['*:*'], cookie_needed: false, entropy: 123456 },
+  });
+
   // Notifications & unread count
   cy.intercept('GET', '/api/notifications*', { statusCode: 200, body: [] });
   cy.intercept('GET', '/api/notifications/unread-count', { statusCode: 200, body: { count: 0 } });
