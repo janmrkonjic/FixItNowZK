@@ -175,9 +175,9 @@ Testi so vključeni v GitHub Actions delovni tok `.github/workflows/frontend.yml
 
 | Testni primer | Datoteka | Opis preverjanega toka | Rezultat | Čas |
 | :--- | :--- | :--- | :---: | :---: |
-| **TS-07** | `cypress/e2e/ts07-provider-calendar.cy.ts` | Ustvarjanje enkratnega in ponavljajočega časovnega bloka (`+ Create`), urejanje, brisanje ter preverjanje kolizije ob dvojni rezervaciji termina. | ✅ Uspešen | 5 s |
-| **TS-08** | `cypress/e2e/ts08-banking-iban-payouts.cy.ts` | Zavrnitev neveljavnega IBAN-a po MOD-97 (`Invalid IBAN`), shranjevanje veljavnega IBAN-a, Stripe onboarding in pregled praznih ter nepraznih izplačil. | ✅ Uspešen | 4 s |
-| **TS-09** | `cypress/e2e/ts09-admin-moderation.cy.ts` | Sprememba vloge uporabnika, suspenz in reaktivacija uporabnika ter posodobitev in brisanje skrbniškega zahtevka. | ✅ Uspešen | 3 s |
+| **TS-07** | `cypress/e2e/ts07-provider-calendar.cy.ts` | Ustvarjanje enkratnega in ponavljajočega časovnega bloka (`+ Create`), urejanje, brisanje ter preverjanje kolizije ob dvojni rezervaciji termina. | Uspešen | 5 s |
+| **TS-08** | `cypress/e2e/ts08-banking-iban-payouts.cy.ts` | Zavrnitev neveljavnega IBAN-a po MOD-97 (`Invalid IBAN`), shranjevanje veljavnega IBAN-a, Stripe onboarding in pregled praznih ter nepraznih izplačil. | Uspešen | 4 s |
+| **TS-09** | `cypress/e2e/ts09-admin-moderation.cy.ts` | Sprememba vloge uporabnika, suspenz in reaktivacija uporabnika ter posodobitev in brisanje skrbniškega zahtevka. | Uspešen | 3 s |
 
 **Skupni rezultat (`npm run test:cypress:ci`):** `All specs passed! 3/3 (14s)`.
 
